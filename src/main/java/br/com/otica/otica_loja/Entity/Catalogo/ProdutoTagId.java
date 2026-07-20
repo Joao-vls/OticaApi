@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.Catalogo;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Embeddable
 public class ProdutoTagId implements Serializable {
 
+    // Getters e Setters
     private UUID produtoId;
     private UUID tagId;
 
@@ -16,23 +22,6 @@ public class ProdutoTagId implements Serializable {
 
     public ProdutoTagId(UUID produtoId, UUID tagId) {
         this.produtoId = produtoId;
-        this.tagId = tagId;
-    }
-
-    // Getters e Setters
-    public UUID getProdutoId() {
-        return produtoId;
-    }
-
-    public void setProdutoId(UUID produtoId) {
-        this.produtoId = produtoId;
-    }
-
-    public UUID getTagId() {
-        return tagId;
-    }
-
-    public void setTagId(UUID tagId) {
         this.tagId = tagId;
     }
 

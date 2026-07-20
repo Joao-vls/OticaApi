@@ -6,6 +6,7 @@ import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoMidiaRepository;
+import br.com.otica.otica_loja.enums.TipoMidia;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +29,7 @@ public class UploadMidiaProdutoUseCase {
      * Faz upload de mídia associada a um produto.
      */
     public ProdutoMidia uploadParaProduto(UUID produtoId,
-                                          String tipo,
+                                          TipoMidia tipo,
                                           String path,
                                           String thumbnailPath,
                                           String posterPath,
@@ -54,7 +55,7 @@ public class UploadMidiaProdutoUseCase {
      * Faz upload de mídia associada a uma variante de produto.
      */
     public ProdutoMidia uploadParaVariante(UUID varianteId,
-                                           String tipo,
+                                           TipoMidia tipo,
                                            String path,
                                            String thumbnailPath,
                                            String posterPath,

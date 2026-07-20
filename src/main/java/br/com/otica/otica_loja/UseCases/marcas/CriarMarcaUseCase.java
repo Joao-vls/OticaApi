@@ -2,7 +2,8 @@ package br.com.otica.otica_loja.UseCases.marcas;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Marca;
 import br.com.otica.otica_loja.Repository.Catalogo.MarcaRepository;
-import br.com.otica.otica_loja.service.cms.CloudinaryService; // Certifique-se de importar seu serviço
+import br.com.otica.otica_loja.enums.TipoMidia; // Importado para passar o TipoMidia correto
+import br.com.otica.otica_loja.service.cms.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,7 +63,8 @@ public class CriarMarcaUseCase {
      */
     private String resolverMidia(MultipartFile file, String url) throws IOException {
         if (file != null && !file.isEmpty()) {
-            return cloudinaryService.upload(file);
+            // Repassa TipoMidia.IMAGE para garantir o resource_type correto nas opções do Cloudinary
+            return cloudinaryService.upload(file, TipoMidia.IMAGE);
         }
 
         if (url != null && !url.isBlank()) {

@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "menu_banners", schema = "loja")
 public class MenuBanner {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -16,7 +22,7 @@ public class MenuBanner {
     private String contexto;
     // sol, grau, institucional, geral
 
-    @Column(length = 255)
+    @Column()
     private String titulo;
 
     @Column(columnDefinition = "TEXT")
@@ -37,76 +43,4 @@ public class MenuBanner {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getContexto() {
-        return contexto;
-    }
-
-    public void setContexto(String contexto) {
-        this.contexto = contexto;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getSubtitulo() {
-        return subtitulo;
-    }
-
-    public void setSubtitulo(String subtitulo) {
-        this.subtitulo = subtitulo;
-    }
-
-    public String getImagemPath() {
-        return imagemPath;
-    }
-
-    public void setImagemPath(String imagemPath) {
-        this.imagemPath = imagemPath;
-    }
-
-    public String getLinkUrl() {
-        return linkUrl;
-    }
-
-    public void setLinkUrl(String linkUrl) {
-        this.linkUrl = linkUrl;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

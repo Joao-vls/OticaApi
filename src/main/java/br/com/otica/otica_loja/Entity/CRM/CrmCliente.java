@@ -2,10 +2,15 @@ package br.com.otica.otica_loja.Entity.CRM;
 
 import br.com.otica.otica_loja.enums.NivelCliente;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "crm_clientes", schema = "loja")
 public class CrmCliente {
@@ -27,7 +32,7 @@ public class CrmCliente {
     private OffsetDateTime ultimoPedidoEm;
 
 
-
+    // Getters e Setters
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private NivelCliente nivel = NivelCliente.BRONZE;
@@ -36,61 +41,5 @@ public class CrmCliente {
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public NivelCliente getNivel() {
-        return nivel;
-    }
 
-    public void setNivel(NivelCliente nivel) {
-        this.nivel = nivel;
-    }
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
-        this.usuarioId = usuarioId;
-    }
-
-    public Integer getScore() {
-        return score;
-    }
-
-    public void setScore(Integer score) {
-        this.score = score;
-    }
-
-    public Integer getTotalPedidos() {
-        return totalPedidos;
-    }
-
-    public void setTotalPedidos(Integer totalPedidos) {
-        this.totalPedidos = totalPedidos;
-    }
-
-    public BigDecimal getValorGasto() {
-        return valorGasto;
-    }
-
-    public void setValorGasto(BigDecimal valorGasto) {
-        this.valorGasto = valorGasto;
-    }
-
-    public OffsetDateTime getUltimoPedidoEm() {
-        return ultimoPedidoEm;
-    }
-
-    public void setUltimoPedidoEm(OffsetDateTime ultimoPedidoEm) {
-        this.ultimoPedidoEm = ultimoPedidoEm;
-    }
-
-
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
 }

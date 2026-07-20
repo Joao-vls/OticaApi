@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.Logistica;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "envio_eventos", schema = "loja")
 public class EnvioEvento {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -16,53 +22,13 @@ public class EnvioEvento {
     @JoinColumn(name = "envio_id", nullable = false)
     private Envio envio;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String descricao;
 
-    @Column(length = 255)
+    @Column()
     private String localizacao;
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Envio getEnvio() {
-        return envio;
-    }
-
-    public void setEnvio(Envio envio) {
-        this.envio = envio;
-    }
-
-    public String getDescricao() {
-        return descricao;
-    }
-
-    public void setDescricao(String descricao) {
-        this.descricao = descricao;
-    }
-
-    public String getLocalizacao() {
-        return localizacao;
-    }
-
-    public void setLocalizacao(String localizacao) {
-        this.localizacao = localizacao;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

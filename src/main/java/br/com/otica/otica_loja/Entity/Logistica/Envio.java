@@ -1,14 +1,20 @@
 package br.com.otica.otica_loja.Entity.Logistica;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "envios", schema = "loja")
 public class Envio {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -21,7 +27,7 @@ public class Envio {
     @JoinColumn(name = "transportadora_id")
     private Transportadora transportadora;
 
-    @Column(name = "codigo_rastreio", length = 255)
+    @Column(name = "codigo_rastreio")
     private String codigoRastreio;
 
     @Column(name = "url_rastreio", columnDefinition = "TEXT")
@@ -39,76 +45,4 @@ public class Envio {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Pedido getPedido() {
-        return pedido;
-    }
-
-    public void setPedido(Pedido pedido) {
-        this.pedido = pedido;
-    }
-
-    public Transportadora getTransportadora() {
-        return transportadora;
-    }
-
-    public void setTransportadora(Transportadora transportadora) {
-        this.transportadora = transportadora;
-    }
-
-    public String getCodigoRastreio() {
-        return codigoRastreio;
-    }
-
-    public void setCodigoRastreio(String codigoRastreio) {
-        this.codigoRastreio = codigoRastreio;
-    }
-
-    public String getUrlRastreio() {
-        return urlRastreio;
-    }
-
-    public void setUrlRastreio(String urlRastreio) {
-        this.urlRastreio = urlRastreio;
-    }
-
-    public BigDecimal getValorFrete() {
-        return valorFrete;
-    }
-
-    public void setValorFrete(BigDecimal valorFrete) {
-        this.valorFrete = valorFrete;
-    }
-
-    public OffsetDateTime getEnviadoEm() {
-        return enviadoEm;
-    }
-
-    public void setEnviadoEm(OffsetDateTime enviadoEm) {
-        this.enviadoEm = enviadoEm;
-    }
-
-    public OffsetDateTime getEntregueEm() {
-        return entregueEm;
-    }
-
-    public void setEntregueEm(OffsetDateTime entregueEm) {
-        this.entregueEm = entregueEm;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

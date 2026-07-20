@@ -2,10 +2,15 @@ package br.com.otica.otica_loja.Entity.Avaliacao;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "produto_avaliacoes", schema = "loja",
         uniqueConstraints = {
@@ -13,6 +18,7 @@ import java.util.UUID;
         })
 public class ProdutoAvaliacao {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -48,92 +54,4 @@ public class ProdutoAvaliacao {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
-        this.usuarioId = usuarioId;
-    }
-
-    public String getNomeUsuario() {
-        return nomeUsuario;
-    }
-
-    public void setNomeUsuario(String nomeUsuario) {
-        this.nomeUsuario = nomeUsuario;
-    }
-
-    public Integer getNota() {
-        return nota;
-    }
-
-    public void setNota(Integer nota) {
-        this.nota = nota;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getTexto() {
-        return texto;
-    }
-
-    public void setTexto(String texto) {
-        this.texto = texto;
-    }
-
-    public String getImagemPath() {
-        return imagemPath;
-    }
-
-    public void setImagemPath(String imagemPath) {
-        this.imagemPath = imagemPath;
-    }
-
-    public Boolean getAprovado() {
-        return aprovado;
-    }
-
-    public void setAprovado(Boolean aprovado) {
-        this.aprovado = aprovado;
-    }
-
-    public LocalDate getDataAvaliacao() {
-        return dataAvaliacao;
-    }
-
-    public void setDataAvaliacao(LocalDate dataAvaliacao) {
-        this.dataAvaliacao = dataAvaliacao;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

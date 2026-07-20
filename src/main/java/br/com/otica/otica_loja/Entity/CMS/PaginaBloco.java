@@ -1,12 +1,18 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "paginas_blocos", schema = "loja")
 public class PaginaBloco {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -24,44 +30,4 @@ public class PaginaBloco {
     @Column(nullable = false)
     private Integer ordem = 0;
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public PaginaCMS getPagina() {
-        return pagina;
-    }
-
-    public void setPagina(PaginaCMS pagina) {
-        this.pagina = pagina;
-    }
-
-    public String getTipo() {
-        return tipo;
-    }
-
-    public void setTipo(String tipo) {
-        this.tipo = tipo;
-    }
-
-    public String getConfiguracao() {
-        return configuracao;
-    }
-
-    public void setConfiguracao(String configuracao) {
-        this.configuracao = configuracao;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
 }

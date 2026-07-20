@@ -1,14 +1,20 @@
 package br.com.otica.otica_loja.Entity.Atendimento;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import java.util.List;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "chat_conversas", schema = "loja")
 public class ChatConversa {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -16,7 +22,7 @@ public class ChatConversa {
     @Column(name = "usuario_id")
     private UUID usuarioId; // FK para auth.users
 
-    @Column(name = "sessao_anonima", length = 255)
+    @Column(name = "sessao_anonima")
     private String sessaoAnonima;
 
     @Column(nullable = false, length = 50)
@@ -37,68 +43,4 @@ public class ChatConversa {
     @OneToMany(mappedBy = "conversa", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatMensagem> mensagens;
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
-        this.usuarioId = usuarioId;
-    }
-
-    public String getSessaoAnonima() {
-        return sessaoAnonima;
-    }
-
-    public void setSessaoAnonima(String sessaoAnonima) {
-        this.sessaoAnonima = sessaoAnonima;
-    }
-
-    public String getCanal() {
-        return canal;
-    }
-
-    public void setCanal(String canal) {
-        this.canal = canal;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
-
-    public List<ChatMensagem> getMensagens() {
-        return mensagens;
-    }
-
-    public void setMensagens(List<ChatMensagem> mensagens) {
-        this.mensagens = mensagens;
-    }
 }

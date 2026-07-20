@@ -1,11 +1,17 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
-
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.util.LinkedHashSet; // 🔥 Mantém a ordenação definida pelo @OrderBy
+import java.util.Set; // 🔥 Evita problemas de múltiplas listas (Bags) no Hibernate
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "vitrines", schema = "loja")
 public class Vitrine {
@@ -20,7 +26,7 @@ public class Vitrine {
     @Column(nullable = false, unique = true, length = 150)
     private String slug;
 
-    @Column(length = 255)
+    @Column
     private String titulo;
 
     @Column(columnDefinition = "TEXT")
@@ -38,88 +44,11 @@ public class Vitrine {
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
-    // Relacionamento inverso com VitrineProduto
+    // 🔥 Otimizado para Set + LinkedHashSet para evitar Cartesian Product
+    // 🔥 Adicionado @OrderBy para garantir que os produtos venham na ordem correta do painel/banco
     @OneToMany(mappedBy = "vitrine", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<VitrineProduto> produtos;
+    @OrderBy("ordem ASC")
+    @JsonIgnoreProperties("vitrine")
+    private Set<VitrineProduto> produtos = new LinkedHashSet<>();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getSlug() {
-        return slug;
-    }
-
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getSubtitulo() {
-        return subtitulo;
-    }
-
-    public void setSubtitulo(String subtitulo) {
-        this.subtitulo = subtitulo;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
-
-    public List<VitrineProduto> getProdutos() {
-        return produtos;
-    }
-
-    public void setProdutos(List<VitrineProduto> produtos) {
-        this.produtos = produtos;
-    }
 }

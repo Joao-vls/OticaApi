@@ -2,11 +2,11 @@ package br.com.otica.otica_loja.UseCases.cms;
 
 import br.com.otica.otica_loja.Entity.CMS.BannerEditorial;
 import br.com.otica.otica_loja.Repository.CMS.BannerEditorialRepository;
+import br.com.otica.otica_loja.enums.TipoMidia;
 import br.com.otica.otica_loja.service.cms.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -61,7 +61,7 @@ public class SalvarBannerEditorialUseCase {
         banner.setAtivo(true);
         banner.setAtualizadoEm(OffsetDateTime.now());
 
-        // LOGO
+        // LOGO (Geralmente uma imagem/SVG, o método resolve dinamicamente)
         banner.setLogoPath(resolverMidia(logoFile, logoUrl, banner.getLogoPath()));
 
         // SEÇÃO 1
@@ -106,7 +106,9 @@ public class SalvarBannerEditorialUseCase {
     ) throws IOException {
 
         if (file != null && !file.isEmpty()) {
-            return cloudinaryService.upload(file);
+            // Descobre dinamicamente se o arquivo físico enviado é um vídeo
+            TipoMidia tipoDetectado = detectarTipoPorNomeArquivo(file.getOriginalFilename());
+            return cloudinaryService.upload(file, tipoDetectado);
         }
 
         if (url != null && !url.isBlank()) {
@@ -114,5 +116,24 @@ public class SalvarBannerEditorialUseCase {
         }
 
         return valorAtual;
+    }
+
+    /**
+     * Auxiliar defensivo para deduzir se o recurso deve ser tratado como VIDEO ou IMAGE
+     */
+    private TipoMidia detectarTipoPorNomeArquivo(String nomeArquivo) {
+        if (nomeArquivo == null) {
+            return TipoMidia.IMAGE;
+        }
+
+        String nomeMinusculo = nomeArquivo.toLowerCase();
+        if (nomeMinusculo.endsWith(".mp4") ||
+                nomeMinusculo.endsWith(".mov") ||
+                nomeMinusculo.endsWith(".webm") ||
+                nomeMinusculo.endsWith(".avi")) {
+            return TipoMidia.VIDEO;
+        }
+
+        return TipoMidia.IMAGE;
     }
 }

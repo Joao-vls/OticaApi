@@ -1,25 +1,40 @@
 package br.com.otica.otica_loja.Entity.Catalogo;
 
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "produto_variantes", schema = "loja")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProdutoVariante {
 
     @Id
-    @GeneratedValue(strategy =  GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     // Relacionamento com Produto
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "produto_id", nullable = false,
             foreignKey = @ForeignKey(name = "produto_variantes_produto_id_fkey"))
+    @JsonIgnore// Evita serializar recursivamente ao iniciar pela variante
     private Produto produto;
+
+    // 🔥 Adicionado: Relacionamento reverso com as mídias da variante para pegar na ordem certa
+    @OneToMany(mappedBy = "variante", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("ordem ASC") // Garante que venha na sequência (1, 2, 3...) cadastrada no banco
+    @JsonIgnore
+    private Set<ProdutoMidia> midias = new LinkedHashSet<>();
 
     @Column(nullable = false, length = 255)
     private String nome;
@@ -62,134 +77,4 @@ public class ProdutoVariante {
 
     @Column(name = "deletado_em")
     private OffsetDateTime deletadoEm;
-
-    // Getters e Setters
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getSku() {
-        return sku;
-    }
-
-    public void setSku(String sku) {
-        this.sku = sku;
-    }
-
-    public String getCodigoBarras() {
-        return codigoBarras;
-    }
-
-    public void setCodigoBarras(String codigoBarras) {
-        this.codigoBarras = codigoBarras;
-    }
-
-    public String getColorName() {
-        return colorName;
-    }
-
-    public void setColorName(String colorName) {
-        this.colorName = colorName;
-    }
-
-    public String getColorHex() {
-        return colorHex;
-    }
-
-    public void setColorHex(String colorHex) {
-        this.colorHex = colorHex;
-    }
-
-    public String getColorImagePath() {
-        return colorImagePath;
-    }
-
-    public void setColorImagePath(String colorImagePath) {
-        this.colorImagePath = colorImagePath;
-    }
-
-    public BigDecimal getPesoGramas() {
-        return pesoGramas;
-    }
-
-    public void setPesoGramas(BigDecimal pesoGramas) {
-        this.pesoGramas = pesoGramas;
-    }
-
-    public Integer getStock() {
-        return stock;
-    }
-
-    public void setStock(Integer stock) {
-        this.stock = stock;
-    }
-
-    public Integer getEstoqueMinimo() {
-        return estoqueMinimo;
-    }
-
-    public void setEstoqueMinimo(Integer estoqueMinimo) {
-        this.estoqueMinimo = estoqueMinimo;
-    }
-
-    public BigDecimal getPriceOverride() {
-        return priceOverride;
-    }
-
-    public void setPriceOverride(BigDecimal priceOverride) {
-        this.priceOverride = priceOverride;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
-
-    public OffsetDateTime getDeletadoEm() {
-        return deletadoEm;
-    }
-
-    public void setDeletadoEm(OffsetDateTime deletadoEm) {
-        this.deletadoEm = deletadoEm;
-    }
 }

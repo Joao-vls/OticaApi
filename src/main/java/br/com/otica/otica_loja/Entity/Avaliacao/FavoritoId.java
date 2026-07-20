@@ -1,32 +1,21 @@
 package br.com.otica.otica_loja.Entity.Avaliacao;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Embeddable
 public class FavoritoId implements Serializable {
 
+    // Getters e Setters
     private UUID usuarioId;
     private UUID produtoId;
-
-    // Getters e Setters
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
-        this.usuarioId = usuarioId;
-    }
-
-    public UUID getProdutoId() {
-        return produtoId;
-    }
-
-    public void setProdutoId(UUID produtoId) {
-        this.produtoId = produtoId;
-    }
 
     // equals e hashCode usando Objects para evitar NullPointerException
     @Override

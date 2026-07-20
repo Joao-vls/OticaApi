@@ -2,7 +2,7 @@ package br.com.otica.otica_loja.UseCases.cms;
 
 import br.com.otica.otica_loja.Entity.CMS.Banner;
 import br.com.otica.otica_loja.Repository.CMS.BannerRepository;
-
+import br.com.otica.otica_loja.enums.TipoMidia; // Importado para definir o tipo de recurso
 import br.com.otica.otica_loja.service.cms.CloudinaryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,14 +40,15 @@ public class CriarBannerUseCase {
         String imagemDesktopUrl = null;
         String imagemMobileUrl = null;
 
+        // Passando TipoMidia.IMAGE para que o Cloudinary aplique as opções corretas de imagem estática
         if (imagemDesktop != null && !imagemDesktop.isEmpty()) {
             imagemDesktopUrl =
-                    cloudinaryService.upload(imagemDesktop);
+                    cloudinaryService.upload(imagemDesktop, TipoMidia.IMAGE);
         }
 
         if (imagemMobile != null && !imagemMobile.isEmpty()) {
             imagemMobileUrl =
-                    cloudinaryService.upload(imagemMobile);
+                    cloudinaryService.upload(imagemMobile, TipoMidia.IMAGE);
         }
 
         Banner banner = new Banner();

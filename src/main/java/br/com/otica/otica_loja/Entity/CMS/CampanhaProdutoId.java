@@ -1,39 +1,27 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Embeddable
 public class CampanhaProdutoId implements Serializable {
 
+    // Getters e Setters
     private UUID campanhaId;
     private UUID produtoId;
-
-    // Getters e Setters
-    public UUID getCampanhaId() {
-        return campanhaId;
-    }
-
-    public void setCampanhaId(UUID campanhaId) {
-        this.campanhaId = campanhaId;
-    }
-
-    public UUID getProdutoId() {
-        return produtoId;
-    }
-
-    public void setProdutoId(UUID produtoId) {
-        this.produtoId = produtoId;
-    }
 
     // equals e hashCode
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof CampanhaProdutoId)) return false;
-        CampanhaProdutoId that = (CampanhaProdutoId) o;
+        if (!(o instanceof CampanhaProdutoId that)) return false;
         return Objects.equals(campanhaId, that.campanhaId) &&
                 Objects.equals(produtoId, that.produtoId);
     }

@@ -1,14 +1,20 @@
 package br.com.otica.otica_loja.Entity.Catalogo;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.util.LinkedHashSet; // 🔥 Importado para preservar a ordenação original do banco
+import java.util.Set; // 🔥 Trocado de List para Set
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "produtos", schema = "loja")
 public class Produto {
@@ -55,20 +61,26 @@ public class Produto {
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
     @Column(name = "atualizado_em", nullable = false)
-    private OffsetDateTime atualizadoEm = OffsetDateTime.now();
+    private OffsetDateTime atualizadoEm = OffsetDateTime.now(); // Nota: Alinhado com o padrão de nomenclatura interna se necessário
 
     @Column(name = "deletado_em")
     private OffsetDateTime deletadoEm;
 
-    // Relacionamento com variantes
-    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ProdutoVariante> variantes;
+// Dentro de Produto.java
 
-    // Relacionamento com mídias
-    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<ProdutoMidia> midias;
 
-    // Relacionamento com tags
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("nome DESC")
+    @JsonIgnoreProperties("produto")
+    private Set<ProdutoVariante> variantes = new LinkedHashSet<>();
+
+    // Ordena primeiro as mídias por tipo (colocando IMAGE ou VIDEO agrupados) e pela coluna ordem de forma crescente (1, 2, 3...)
+    @OneToMany(mappedBy = "produto", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("tipo DESC, ordem ASC")
+    @JsonIgnoreProperties("produto")
+    private Set<ProdutoMidia> midias = new LinkedHashSet<>();
+
+
     @ManyToMany
     @JoinTable(
             name = "produtos_tags",
@@ -76,151 +88,5 @@ public class Produto {
             joinColumns = @JoinColumn(name = "produto_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    private List<ProdutoTag> tags;
-
-    // Getters e Setters
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public UUID getMarcaId() {
-        return marcaId;
-    }
-
-    public void setMarcaId(UUID marcaId) {
-        this.marcaId = marcaId;
-    }
-
-    public UUID getCategoriaId() {
-        return categoriaId;
-    }
-
-    public void setCategoriaId(UUID categoriaId) {
-        this.categoriaId = categoriaId;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getSlug() {
-        return slug;
-    }
-
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
-
-    public String getDescricao() {
-        return descricao;
-    }
-
-    public void setDescricao(String descricao) {
-        this.descricao = descricao;
-    }
-
-    public BigDecimal getPreco() {
-        return preco;
-    }
-
-    public void setPreco(BigDecimal preco) {
-        this.preco = preco;
-    }
-
-    public String getCategoriaOculos() {
-        return categoriaOculos;
-    }
-
-    public void setCategoriaOculos(String categoriaOculos) {
-        this.categoriaOculos = categoriaOculos;
-    }
-
-    public String getSpecs() {
-        return specs;
-    }
-
-    public void setSpecs(String specs) {
-        this.specs = specs;
-    }
-
-    public Boolean getDestaque() {
-        return destaque;
-    }
-
-    public void setDestaque(Boolean destaque) {
-        this.destaque = destaque;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public String getSearchVector() {
-        return searchVector;
-    }
-
-    public void setSearchVector(String searchVector) {
-        this.searchVector = searchVector;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
-
-    public OffsetDateTime getDeletadoEm() {
-        return deletadoEm;
-    }
-
-    public void setDeletadoEm(OffsetDateTime deletadoEm) {
-        this.deletadoEm = deletadoEm;
-    }
-
-    public List<ProdutoVariante> getVariantes() {
-        return variantes;
-    }
-
-    public void setVariantes(List<ProdutoVariante> variantes) {
-        this.variantes = variantes;
-    }
-
-    public List<ProdutoMidia> getMidias() {
-        return midias;
-    }
-
-    public void setMidias(List<ProdutoMidia> midias) {
-        this.midias = midias;
-    }
-
-    public List<ProdutoTag> getTags() {
-        return tags;
-    }
-
-    public void setTags(List<ProdutoTag> tags) {
-        this.tags = tags;
-    }
+    private Set<ProdutoTag> tags = new LinkedHashSet<>();
 }

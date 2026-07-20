@@ -4,11 +4,16 @@ import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import br.com.otica.otica_loja.enums.RemetenteTipo;
+import lombok.Getter;
+import lombok.Setter;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "chat_mensagens", schema = "loja")
 public class ChatMensagem {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -33,60 +38,4 @@ public class ChatMensagem {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public ChatConversa getConversa() {
-        return conversa;
-    }
-
-    public void setConversa(ChatConversa conversa) {
-        this.conversa = conversa;
-    }
-
-    public RemetenteTipo getRemetente() {
-        return remetente;
-    }
-
-    public void setRemetente(RemetenteTipo remetente) {
-        this.remetente = remetente;
-    }
-
-    public String getMensagem() {
-        return mensagem;
-    }
-
-    public void setMensagem(String mensagem) {
-        this.mensagem = mensagem;
-    }
-
-    public String getArquivoPath() {
-        return arquivoPath;
-    }
-
-    public void setArquivoPath(String arquivoPath) {
-        this.arquivoPath = arquivoPath;
-    }
-
-    public Boolean getVisualizada() {
-        return visualizada;
-    }
-
-    public void setVisualizada(Boolean visualizada) {
-        this.visualizada = visualizada;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

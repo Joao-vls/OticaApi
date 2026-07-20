@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "banners", schema = "loja")
 public class Banner {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -51,116 +57,4 @@ public class Banner {
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getSubtitulo() {
-        return subtitulo;
-    }
-
-    public void setSubtitulo(String subtitulo) {
-        this.subtitulo = subtitulo;
-    }
-
-    public String getDescricao() {
-        return descricao;
-    }
-
-    public void setDescricao(String descricao) {
-        this.descricao = descricao;
-    }
-
-    public String getImagemDesktopPath() {
-        return imagemDesktopPath;
-    }
-
-    public void setImagemDesktopPath(String imagemDesktopPath) {
-        this.imagemDesktopPath = imagemDesktopPath;
-    }
-
-    public String getImagemMobilePath() {
-        return imagemMobilePath;
-    }
-
-    public void setImagemMobilePath(String imagemMobilePath) {
-        this.imagemMobilePath = imagemMobilePath;
-    }
-
-    public String getLinkUrl() {
-        return linkUrl;
-    }
-
-    public void setLinkUrl(String linkUrl) {
-        this.linkUrl = linkUrl;
-    }
-
-    public String getBotaoTexto() {
-        return botaoTexto;
-    }
-
-    public void setBotaoTexto(String botaoTexto) {
-        this.botaoTexto = botaoTexto;
-    }
-
-    public String getPosicao() {
-        return posicao;
-    }
-
-    public void setPosicao(String posicao) {
-        this.posicao = posicao;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public OffsetDateTime getDataInicio() {
-        return dataInicio;
-    }
-
-    public void setDataInicio(OffsetDateTime dataInicio) {
-        this.dataInicio = dataInicio;
-    }
-
-    public OffsetDateTime getDataFim() {
-        return dataFim;
-    }
-
-    public void setDataFim(OffsetDateTime dataFim) {
-        this.dataFim = dataFim;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
 }

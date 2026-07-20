@@ -15,6 +15,7 @@ public record VitrineResponseDTO(
             String slug,
             BigDecimal price,
             String image,          // Imagem principal (ex: primeira da lista de mídias)
-            List<String> images    // Galeria de até 5 imagens para o preview do Angular
+            List<String> images,   // Galeria de até 5 imagens para o preview do Angular
+            Integer totalCores     // 🔥 Adicionado para tornar as cores dinâmicas no Angular
     ) {}
 }

@@ -2,13 +2,19 @@ package br.com.otica.otica_loja.Entity.CMS;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "social_showcase", schema = "loja")
 public class SocialShowcase {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -47,100 +53,4 @@ public class SocialShowcase {
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public String getMarcaNome() {
-        return marcaNome;
-    }
-
-    public void setMarcaNome(String marcaNome) {
-        this.marcaNome = marcaNome;
-    }
-
-    public String getModeloNome() {
-        return modeloNome;
-    }
-
-    public void setModeloNome(String modeloNome) {
-        this.modeloNome = modeloNome;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getThumbnailPath() {
-        return thumbnailPath;
-    }
-
-    public void setThumbnailPath(String thumbnailPath) {
-        this.thumbnailPath = thumbnailPath;
-    }
-
-    public String getVideoPath() {
-        return videoPath;
-    }
-
-    public void setVideoPath(String videoPath) {
-        this.videoPath = videoPath;
-    }
-
-    public Long getVisualizacoes() {
-        return visualizacoes;
-    }
-
-    public void setVisualizacoes(Long visualizacoes) {
-        this.visualizacoes = visualizacoes;
-    }
-
-    public Long getCurtidas() {
-        return curtidas;
-    }
-
-    public void setCurtidas(Long curtidas) {
-        this.curtidas = curtidas;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

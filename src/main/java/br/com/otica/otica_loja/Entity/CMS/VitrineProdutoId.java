@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Embeddable
 public class VitrineProdutoId implements Serializable {
 
+    // Getters e Setters
     private UUID vitrineId;
     private UUID produtoId;
 
@@ -20,29 +26,11 @@ public class VitrineProdutoId implements Serializable {
         this.produtoId = produtoId;
     }
 
-    // Getters e Setters
-    public UUID getVitrineId() {
-        return vitrineId;
-    }
-
-    public void setVitrineId(UUID vitrineId) {
-        this.vitrineId = vitrineId;
-    }
-
-    public UUID getProdutoId() {
-        return produtoId;
-    }
-
-    public void setProdutoId(UUID produtoId) {
-        this.produtoId = produtoId;
-    }
-
     // equals e hashCode
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof VitrineProdutoId)) return false;
-        VitrineProdutoId that = (VitrineProdutoId) o;
+        if (!(o instanceof VitrineProdutoId that)) return false;
         return Objects.equals(vitrineId, that.vitrineId) &&
                 Objects.equals(produtoId, that.produtoId);
     }

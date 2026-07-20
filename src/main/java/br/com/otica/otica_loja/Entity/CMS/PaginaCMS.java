@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "paginas_cms", schema = "loja")
 public class PaginaCMS {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -42,92 +48,4 @@ public class PaginaCMS {
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getSlug() {
-        return slug;
-    }
-
-    public void setSlug(String slug) {
-        this.slug = slug;
-    }
-
-    public String getResumo() {
-        return resumo;
-    }
-
-    public void setResumo(String resumo) {
-        this.resumo = resumo;
-    }
-
-    public String getConteudo() {
-        return conteudo;
-    }
-
-    public void setConteudo(String conteudo) {
-        this.conteudo = conteudo;
-    }
-
-    public String getSeoTitle() {
-        return seoTitle;
-    }
-
-    public void setSeoTitle(String seoTitle) {
-        this.seoTitle = seoTitle;
-    }
-
-    public String getSeoDescription() {
-        return seoDescription;
-    }
-
-    public void setSeoDescription(String seoDescription) {
-        this.seoDescription = seoDescription;
-    }
-
-    public Boolean getPublicado() {
-        return publicado;
-    }
-
-    public void setPublicado(Boolean publicado) {
-        this.publicado = publicado;
-    }
-
-    public OffsetDateTime getPublicadoEm() {
-        return publicadoEm;
-    }
-
-    public void setPublicadoEm(OffsetDateTime publicadoEm) {
-        this.publicadoEm = publicadoEm;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
-
-    public OffsetDateTime getAtualizadoEm() {
-        return atualizadoEm;
-    }
-
-    public void setAtualizadoEm(OffsetDateTime atualizadoEm) {
-        this.atualizadoEm = atualizadoEm;
-    }
 }

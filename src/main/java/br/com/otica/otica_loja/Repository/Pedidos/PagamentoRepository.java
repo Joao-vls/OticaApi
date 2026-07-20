@@ -5,6 +5,7 @@ import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.enums.MetodoPagamento;
 import br.com.otica.otica_loja.enums.StatusPagamento;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -15,6 +16,22 @@ import java.util.UUID;
 
 @Repository
 public interface PagamentoRepository extends JpaRepository<Pagamento, UUID> {
+
+    /**
+     * Interface baseada em Projeção para capturar os resultados agregados
+     * de forma limpa e tipada, evitando o uso de Object[].
+     */
+    interface MetricasStatusProjection {
+        StatusPagamento getStatus();
+        Long getQuantidade();
+        BigDecimal getSomaValor();
+    }
+
+    // NOVA QUERY OTIMIZADA PARA O DASHBOARD
+    // Agrupa tudo no banco e faz uma única viagem na rede
+    @Query("SELECT p.status as status, COUNT(p) as quantidade, SUM(p.valor) as somaValor " +
+            "FROM Pagamento p GROUP BY p.status")
+    List<MetricasStatusProjection> obterMetricasAgrupadasPorStatus();
 
     // Buscar pagamentos de um pedido específico
     List<Pagamento> findByPedido(Pedido pedido);

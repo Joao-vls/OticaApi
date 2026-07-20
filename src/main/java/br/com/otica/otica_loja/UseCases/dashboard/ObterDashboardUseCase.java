@@ -1,15 +1,16 @@
 package br.com.otica.otica_loja.UseCases.dashboard;
 
-import br.com.otica.otica_loja.Entity.Pedidos.Pagamento;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PagamentoRepository;
+import br.com.otica.otica_loja.Repository.Pedidos.PagamentoRepository.MetricasStatusProjection;
 import br.com.otica.otica_loja.dto.dashboard.DashboardDTO;
 import br.com.otica.otica_loja.enums.StatusPagamento;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 public class ObterDashboardUseCase {
@@ -23,31 +24,46 @@ public class ObterDashboardUseCase {
     @Autowired
     private PagamentoRepository pagamentoRepository;
 
-    /**
-     * Retorna um objeto com métricas gerais da loja.
-     */
     public DashboardDTO obterDashboard() {
         DashboardDTO dto = new DashboardDTO();
 
-        // Usuários
+        // 1. Usuários e Produtos (Consultas via COUNT direto no banco)
         dto.setTotalUsuarios(usuarioRepository.count());
-
-        // Produtos
         dto.setTotalProdutos(produtoRepository.count());
-        dto.setProdutosAtivos(produtoRepository.findByAtivoTrue().size());
-        dto.setProdutosInativos(produtoRepository.findByAtivoFalse().size());
+        dto.setProdutosAtivos((int) produtoRepository.countByAtivoTrue());
+        dto.setProdutosInativos((int) produtoRepository.countByAtivoFalse());
 
-        // Pagamentos
-        dto.setTotalPagamentos(pagamentoRepository.count());
-        dto.setPagamentosAprovados(pagamentoRepository.findByStatus(StatusPagamento.APROVADO).size());
-        dto.setPagamentosPendentes(pagamentoRepository.findByStatus(StatusPagamento.PENDENTE).size());
-        dto.setPagamentosRecusados(pagamentoRepository.findByStatus(StatusPagamento.RECUSADO).size());
+        // 2. Pagamentos (Uma única query agregada para obter todas as métricas)
+        List<MetricasStatusProjection> metricas = pagamentoRepository.obterMetricasAgrupadasPorStatus();
 
-        // Receita total
-        BigDecimal receitaTotal = pagamentoRepository.findByStatus(StatusPagamento.APROVADO)
-                .stream()
-                .map(Pagamento::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long totalPagamentos = 0;
+        long aprovados = 0;
+        long pendentes = 0;
+        long recusados = 0;
+        BigDecimal receitaTotal = BigDecimal.ZERO;
+
+        for (MetricasStatusProjection registro : metricas) {
+            StatusPagamento status = registro.getStatus();
+            long quantidade = registro.getQuantidade();
+            BigDecimal somaValor = registro.getSomaValor() != null ? registro.getSomaValor() : BigDecimal.ZERO;
+
+            totalPagamentos += quantidade;
+
+            if (status == StatusPagamento.APROVADO) {
+                aprovados = quantidade;
+                receitaTotal = somaValor;
+            } else if (status == StatusPagamento.PENDENTE) {
+                pendentes = quantidade;
+            } else if (status == StatusPagamento.RECUSADO) {
+                recusados = quantidade;
+            }
+        }
+
+        // Atribuindo os resultados consolidados ao DTO
+        dto.setTotalPagamentos(totalPagamentos);
+        dto.setPagamentosAprovados(aprovados);
+        dto.setPagamentosPendentes(pendentes);
+        dto.setPagamentosRecusados(recusados);
         dto.setReceitaTotal(receitaTotal);
 
         return dto;

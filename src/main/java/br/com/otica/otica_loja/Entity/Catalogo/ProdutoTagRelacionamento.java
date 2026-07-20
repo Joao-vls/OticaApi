@@ -1,12 +1,18 @@
 package br.com.otica.otica_loja.Entity.Catalogo;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "produtos_tags", schema = "loja")
 public class ProdutoTagRelacionamento {
 
+    // Getters e Setters
     @EmbeddedId
     private ProdutoTagId id = new ProdutoTagId();
 
@@ -20,28 +26,4 @@ public class ProdutoTagRelacionamento {
     @JoinColumn(name = "tag_id", nullable = false)
     private ProdutoTag tag;
 
-    // Getters e Setters
-    public ProdutoTagId getId() {
-        return id;
-    }
-
-    public void setId(ProdutoTagId id) {
-        this.id = id;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public ProdutoTag getTag() {
-        return tag;
-    }
-
-    public void setTag(ProdutoTag tag) {
-        this.tag = tag;
-    }
 }

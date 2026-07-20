@@ -1,12 +1,18 @@
 package br.com.otica.otica_loja.Entity.CMS;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "footer_links", schema = "loja")
 public class FooterLink {
 
+    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -30,60 +36,4 @@ public class FooterLink {
     @Column(nullable = false)
     private Boolean ativo = true;
 
-    // Getters e Setters
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public FooterGrupo getGrupo() {
-        return grupo;
-    }
-
-    public void setGrupo(FooterGrupo grupo) {
-        this.grupo = grupo;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public Boolean getTargetBlank() {
-        return targetBlank;
-    }
-
-    public void setTargetBlank(Boolean targetBlank) {
-        this.targetBlank = targetBlank;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
 }

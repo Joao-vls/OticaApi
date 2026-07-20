@@ -1,13 +1,19 @@
 package br.com.otica.otica_loja.Entity.Comercial;
 
 import jakarta.persistence.Embeddable;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Embeddable
 public class UsuarioCupomId implements Serializable {
 
+    // Getters e Setters
     private UUID usuarioId;
     private UUID cupomId;
 
@@ -16,23 +22,6 @@ public class UsuarioCupomId implements Serializable {
 
     public UsuarioCupomId(UUID usuarioId, UUID cupomId) {
         this.usuarioId = usuarioId;
-        this.cupomId = cupomId;
-    }
-
-    // Getters e Setters
-    public UUID getUsuarioId() {
-        return usuarioId;
-    }
-
-    public void setUsuarioId(UUID usuarioId) {
-        this.usuarioId = usuarioId;
-    }
-
-    public UUID getCupomId() {
-        return cupomId;
-    }
-
-    public void setCupomId(UUID cupomId) {
         this.cupomId = cupomId;
     }
 

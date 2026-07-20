@@ -2,6 +2,7 @@ package br.com.otica.otica_loja.UseCases.marcas;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Marca;
 import br.com.otica.otica_loja.Repository.Catalogo.MarcaRepository;
+import br.com.otica.otica_loja.enums.TipoMidia; // Importado para definir o tipo de mídia como IMAGE
 import br.com.otica.otica_loja.service.cms.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -64,7 +65,8 @@ public class AtualizarMarcaUseCase {
 
     private String resolverMidia(MultipartFile file, String url, String valorAtual) throws IOException {
         if (file != null && !file.isEmpty()) {
-            return cloudinaryService.upload(file);
+            // Passa TipoMidia.IMAGE explicitamente para configurar o resource_type correto
+            return cloudinaryService.upload(file, TipoMidia.IMAGE);
         }
         if (url != null && !url.isBlank()) {
             return url;

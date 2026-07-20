@@ -1,31 +1,45 @@
 package br.com.otica.otica_loja.Entity.Catalogo;
 
+import br.com.otica.otica_loja.enums.TipoMidia;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "produto_midias", schema = "loja")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Removido o bloqueio global da variante
 public class ProdutoMidia {
 
     @Id
-    @GeneratedValue(strategy =  GenerationType.AUTO)
+    @GeneratedValue // Otimizado para UUID nativo
     private UUID id;
 
-    // Relacionamento com Produto
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "produto_id", foreignKey = @ForeignKey(name = "produto_midias_produto_id_fkey"))
+    @JsonIgnore // 👈 Adicione isso. A mídia não precisa devolver o produto inteiro dentro dela no JSON.
     private Produto produto;
 
-    // Relacionamento com ProdutoVariantes
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variante_id", foreignKey = @ForeignKey(name = "produto_midias_variante_id_fkey"))
+    @JsonIgnoreProperties({
+            "produto", "midias", // 👈 Adicionado "midias" aqui para evitar que a variante puxe a lista de mídias de volta!
+            "nome", "codigoBarras", "colorName", "colorHex", "colorImagePath",
+            "pesoGramas", "stock", "estoqueMinimo", "priceOverride", "ativo",
+            "criadoEm", "atualizadoEm", "deletadoEm", "hibernateLazyInitializer", "handler"
+    })
     private ProdutoVariante variante;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String tipo; // image, video, 3d
+    private TipoMidia tipo;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String path;
@@ -41,78 +55,4 @@ public class ProdutoMidia {
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
-
-    // Getters e Setters
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public Produto getProduto() {
-        return produto;
-    }
-
-    public void setProduto(Produto produto) {
-        this.produto = produto;
-    }
-
-    public ProdutoVariante getVariante() {
-        return variante;
-    }
-
-    public void setVariante(ProdutoVariante variante) {
-        this.variante = variante;
-    }
-
-    public String getTipo() {
-        return tipo;
-    }
-
-    public void setTipo(String tipo) {
-        this.tipo = tipo;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    public String getThumbnailPath() {
-        return thumbnailPath;
-    }
-
-    public void setThumbnailPath(String thumbnailPath) {
-        this.thumbnailPath = thumbnailPath;
-    }
-
-    public String getPosterPath() {
-        return posterPath;
-    }
-
-    public void setPosterPath(String posterPath) {
-        this.posterPath = posterPath;
-    }
-
-    public Integer getOrdem() {
-        return ordem;
-    }
-
-    public void setOrdem(Integer ordem) {
-        this.ordem = ordem;
-    }
-
-    public OffsetDateTime getCriadoEm() {
-        return criadoEm;
-    }
-
-    public void setCriadoEm(OffsetDateTime criadoEm) {
-        this.criadoEm = criadoEm;
-    }
 }

@@ -2,12 +2,18 @@ package br.com.otica.otica_loja.Entity.Comercial;
 
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.OffsetDateTime;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "usuario_cupons", schema = "loja")
 public class UsuarioCupom {
 
+    // Getters e Setters
     @EmbeddedId
     private UsuarioCupomId id = new UsuarioCupomId();
 
@@ -24,36 +30,4 @@ public class UsuarioCupom {
     @Column(name = "utilizado_em", nullable = false)
     private OffsetDateTime utilizadoEm = OffsetDateTime.now();
 
-    // Getters e Setters
-    public UsuarioCupomId getId() {
-        return id;
-    }
-
-    public void setId(UsuarioCupomId id) {
-        this.id = id;
-    }
-
-    public Usuario getUsuario() {
-        return usuario;
-    }
-
-    public void setUsuario(Usuario usuario) {
-        this.usuario = usuario;
-    }
-
-    public Cupom getCupom() {
-        return cupom;
-    }
-
-    public void setCupom(Cupom cupom) {
-        this.cupom = cupom;
-    }
-
-    public OffsetDateTime getUtilizadoEm() {
-        return utilizadoEm;
-    }
-
-    public void setUtilizadoEm(OffsetDateTime utilizadoEm) {
-        this.utilizadoEm = utilizadoEm;
-    }
 }

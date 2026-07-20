@@ -1,14 +1,15 @@
 package br.com.otica.otica_loja.UseCases.cms;
 
-
 import br.com.otica.otica_loja.Entity.CMS.Vitrine;
 import br.com.otica.otica_loja.Entity.CMS.VitrineProduto;
-import br.com.otica.otica_loja.Entity.Catalogo.ProdutoMidia; // Importação correta do pacote
+import br.com.otica.otica_loja.Entity.Catalogo.ProdutoMidia;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
 import br.com.otica.otica_loja.dto.cms.VitrineResponseDTO;
+import br.com.otica.otica_loja.enums.TipoMidia;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -24,30 +25,40 @@ public class BuscarVitrinePorSlugUseCase {
     @Transactional(readOnly = true)
     public VitrineResponseDTO executar(String slug) {
 
-        // 1. Busca a vitrine ativa pelo slug
         Vitrine vitrine = vitrineRepository.findBySlug(slug)
                 .filter(Vitrine::getAtivo)
                 .orElseThrow(() -> new IllegalArgumentException("Vitrine não encontrada ou inativa."));
 
-        // 2. Mapeia os produtos associados respeitando a ordem da vitrine
         List<VitrineResponseDTO.ProductCardDTO> produtosDTO = vitrine.getProdutos().stream()
                 .sorted(Comparator.comparing(VitrineProduto::getOrdem))
                 .map(vitrineProduto -> {
                     var produto = vitrineProduto.getProduto();
 
-                    // 3. Filtra apenas mídias do tipo "image", remove nulos/vazios e ordena pela 'ordem' da mídia
-                    List<String> caminhosImagens = produto.getMidias().stream()
-                            .filter(midia -> "image".equalsIgnoreCase(midia.getTipo()))
-                            .sorted(Comparator.comparing(ProdutoMidia::getOrdem))
-                            .map(ProdutoMidia::getPath)
-                            .filter(path -> path != null && !path.isBlank())
-                            .toList();
+                    // 1. Conta a quantidade de cores/variantes (mantendo o contador dinâmico)
+                    int totalCores = produto.getVariantes() != null ? produto.getVariantes().size() : 0;
 
-                    // 4. Define o fallback caso o produto de alguma forma não tenha imagens salvas
-                    String imagemPrincipal = caminhosImagens.isEmpty() ? "assets/images/placeholder.jpg" : caminhosImagens.get(0);
+                    // 2. Busca as imagens da primeira variante para respeitar a sequência de cor
+                    List<String> caminhosImagens = new ArrayList<>();
 
-                    // 5. Garante o limite máximo de 5 imagens que o seu componente Angular espera para o preview
-                    List<String> galeriaPreview = caminhosImagens.stream().limit(5).toList();
+                    if (produto.getVariantes() != null && !produto.getVariantes().isEmpty()) {
+                        // Pega a primeira variante da lista ordenada pelo banco
+                        var primeiraVariante = produto.getVariantes().iterator().next();
+
+                        // Extrai as imagens específicas dessa variante na sequência original
+                        caminhosImagens = primeiraVariante.getMidias().stream()
+                                .filter(midia -> midia.getTipo() == TipoMidia.IMAGE)
+                                .map(midia -> midia.getPath()) // Altere para o método getter correto da sua mídia de variante se necessário (ex: getPath)
+                                .filter(path -> path != null && !path.isBlank())
+                                .toList();
+                    }
+
+                    // 3. Fallback caso a variante não tenha imagens cadastradas
+                    String imagemPrincipal = caminhosImagens.isEmpty()
+                            ? "assets/images/placeholder.jpg"
+                            : caminhosImagens.getFirst();
+
+                    // 4. Limita a galeria ao máximo de 6 imagens que o carrossel do Angular usa
+                    List<String> galeriaPreview = caminhosImagens.stream().limit(8).toList();
 
                     return new VitrineResponseDTO.ProductCardDTO(
                             produto.getId(),
@@ -55,12 +66,12 @@ public class BuscarVitrinePorSlugUseCase {
                             produto.getSlug(),
                             produto.getPreco(),
                             imagemPrincipal,
-                            galeriaPreview
+                            galeriaPreview,
+                            totalCores
                     );
                 })
                 .toList();
 
-        // 6. Monta a resposta final
         return new VitrineResponseDTO(
                 vitrine.getTitulo(),
                 vitrine.getSubtitulo(),
