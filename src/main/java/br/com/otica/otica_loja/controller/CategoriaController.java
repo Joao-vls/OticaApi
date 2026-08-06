@@ -1,18 +1,26 @@
 package br.com.otica.otica_loja.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import br.com.otica.otica_loja.Entity.Catalogo.Categoria;
+import br.com.otica.otica_loja.UseCases.categorias.ListarCategoriasUseCase;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/categorias")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CategoriaController {
 
-    // Lista todas as categorias
+    private final ListarCategoriasUseCase listarCategoriasUseCase;
+
+    // Lista todas as categorias ativas
     @GetMapping
-    public String listarCategorias() {
-        return "lista de categorias";
+    public ResponseEntity<List<Categoria>> listarCategorias() {
+        List<Categoria> categorias = listarCategoriasUseCase.listarAtivas();
+        return ResponseEntity.ok(categorias);
     }
 
     // Detalhes de uma categoria específica

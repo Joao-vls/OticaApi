@@ -27,6 +27,8 @@ public interface VitrineRepository extends JpaRepository<Vitrine, UUID> {
     // Buscar vitrines ordenadas pela ordem definida
     List<Vitrine> findAllByOrderByOrdemAsc();
 
+    List<Vitrine> findByAtivoTrueOrderByOrdemAsc();
+
     // Buscar vitrines criadas após uma data
     List<Vitrine> findByCriadoEmAfter(OffsetDateTime data);
 

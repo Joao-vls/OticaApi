@@ -2,12 +2,15 @@ package br.com.otica.otica_loja.controller;
 
 import br.com.otica.otica_loja.Repository.CMS.BannerEditorialRepository;
 import br.com.otica.otica_loja.UseCases.cms.BuscarVitrinePorSlugUseCase;
+import br.com.otica.otica_loja.UseCases.cms.ListarVitrinesAtivasUseCase;
 import br.com.otica.otica_loja.dto.cms.PromoMainResponseDTO;
 import br.com.otica.otica_loja.dto.cms.PromoSectionDTO;
 import br.com.otica.otica_loja.dto.cms.VitrineResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/home")
@@ -16,8 +19,16 @@ import org.springframework.web.bind.annotation.*;
 public class HomeController {
 
     private final BannerEditorialRepository bannerEditorialRepository;
+    private final BuscarVitrinePorSlugUseCase buscarVitrinePorSlugUseCase;
+    private final ListarVitrinesAtivasUseCase listarVitrinesAtivasUseCase;
 
-    // Agora aceita tanto /home/promo/HOME_PROMO_MAIN quanto /home/promo/HOME_PROMO_SIDE
+    // NOVO ENDPOINT: Retorna todas as vitrines ativas para a Home
+    @GetMapping("/vitrines")
+    public ResponseEntity<List<VitrineResponseDTO>> getVitrinesAtivas() {
+        List<VitrineResponseDTO> vitrines = listarVitrinesAtivasUseCase.executar();
+        return ResponseEntity.ok(vitrines);
+    }
+
     @GetMapping("/promo/{identificador}")
     public ResponseEntity<PromoMainResponseDTO> getPromoPorIdentificador(@PathVariable String identificador) {
 
@@ -61,8 +72,6 @@ public class HomeController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
-    // Injete o Use Case no construtor da HomeController junto com o bannerEditorialRepository
-    private final BuscarVitrinePorSlugUseCase buscarVitrinePorSlugUseCase;
 
     @GetMapping("/vitrine/{slug}")
     public ResponseEntity<VitrineResponseDTO> getVitrinePorSlug(@PathVariable String slug) {

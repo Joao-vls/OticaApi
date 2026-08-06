@@ -31,6 +31,8 @@ public class SecurityConfig {
                         // Libera o Preflight (OPTIONS) obrigatoriamente
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/home/**").permitAll()
+                        .requestMatchers("/categorias/**").permitAll()
+                        .requestMatchers("/marcas/**").permitAll()
                         .requestMatchers("/admin/**").permitAll()
                         .requestMatchers("/produtos/**").permitAll()
                         .anyRequest().authenticated()

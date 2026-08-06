@@ -1,18 +1,26 @@
 package br.com.otica.otica_loja.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import br.com.otica.otica_loja.Entity.Catalogo.Marca;
+import br.com.otica.otica_loja.UseCases.marcas.ListarMarcasUseCase;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/marcas")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class MarcaController {
 
-    // Lista todas as marcas
+    private final ListarMarcasUseCase listarMarcasUseCase;
+
+    // Lista todas as marcas ativas no e-commerce
     @GetMapping
-    public String listarMarcas() {
-        return "lista de marcas";
+    public ResponseEntity<List<Marca>> listarMarcas() {
+        List<Marca> marcas = listarMarcasUseCase.listarAtivas();
+        return ResponseEntity.ok(marcas);
     }
 
     // Detalhes de uma marca específica

@@ -2,6 +2,8 @@ package br.com.otica.otica_loja.dto.cms;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
+import java.util.UUID;
 
 public record VitrineAdminRequestDTO(
         @NotBlank(message = "O nome é obrigatório")
@@ -18,5 +20,7 @@ public record VitrineAdminRequestDTO(
         String subtitulo,
 
         Integer ordem,
-        Boolean ativo
+        Boolean ativo,
+
+        List<UUID> produtosIds
 ) {}

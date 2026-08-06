@@ -13,35 +13,26 @@ import java.util.UUID;
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
 
-    // Buscar produto pelo slug
     @Query("SELECT p FROM Produto p " +
             "LEFT JOIN FETCH p.variantes " +
             "LEFT JOIN FETCH p.midias " +
             "WHERE p.slug = :slug AND p.ativo = true")
     Optional<Produto> findBySlug(@Param("slug") String slug);
 
-    // Buscar produtos por nome (contendo parte do texto)
-    List<Produto> findByNomeContainingIgnoreCase(String nome);
+    // 🔥 BUSCA PARCIAL COM SUPORTE A UNACCENT E LOWERCASE (NATIVE QUERY POSTGRESQL)
+    @Query(value = "SELECT * FROM loja.produtos p " +
+            "WHERE unaccent(LOWER(p.nome)) LIKE unaccent(LOWER(CONCAT('%', :termo, '%'))) " +
+            "AND p.ativo = true " +
+            "AND p.deletado_em IS NULL",
+            nativeQuery = true)
+    List<Produto> findByNomeContainingIgnoreCase(@Param("termo") String termo);
 
-    // Buscar produtos por categoria
     List<Produto> findByCategoriaId(UUID categoriaId);
-
-    // Buscar produtos por marca
     List<Produto> findByMarcaId(UUID marcaId);
-
-    // Buscar produtos ativos
     List<Produto> findByAtivoTrue();
-
-    // Buscar produtos inativos
     List<Produto> findByAtivoFalse();
-
-    // Buscar produtos em destaque
     List<Produto> findByDestaqueTrue();
-
-    // Buscar produtos não deletados (soft delete)
     List<Produto> findByDeletadoEmIsNull();
-
-    // Buscar produtos deletados (soft delete)
     List<Produto> findByDeletadoEmIsNotNull();
 
     long countByAtivoTrue();

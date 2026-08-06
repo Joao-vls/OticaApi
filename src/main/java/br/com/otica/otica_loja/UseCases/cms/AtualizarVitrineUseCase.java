@@ -1,50 +1,79 @@
 package br.com.otica.otica_loja.UseCases.cms;
 
 import br.com.otica.otica_loja.Entity.CMS.Vitrine;
+import br.com.otica.otica_loja.Entity.CMS.VitrineProduto;
+import br.com.otica.otica_loja.Entity.CMS.VitrineProdutoId;
+import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class AtualizarVitrineUseCase {
 
-    @Autowired
-    private VitrineRepository vitrineRepository;
+    private final VitrineRepository vitrineRepository;
+    private final ProdutoRepository produtoRepository;
 
-    /**
-     * Atualiza uma vitrine existente.
-     */
-    public Vitrine atualizarVitrine(UUID vitrineId,
-                                    String nome,
-                                    String slug,
-                                    String titulo,
-                                    String subtitulo,
-                                    Integer ordem,
-                                    Boolean ativo) {
+    public AtualizarVitrineUseCase(
+            VitrineRepository vitrineRepository,
+            ProdutoRepository produtoRepository
+    ) {
+        this.vitrineRepository = vitrineRepository;
+        this.produtoRepository = produtoRepository;
+    }
 
-        // Buscar vitrine existente
-        Vitrine vitrine = vitrineRepository.findById(vitrineId)
-                .orElseThrow(() -> new IllegalArgumentException("Vitrine não encontrada."));
+    public record Command(
+            String nome,
+            String slug,
+            String titulo,
+            String subtitulo,
+            Integer ordem,
+            Boolean ativo,
+            List<UUID> produtosIds
+    ) {}
 
-        // Atualizar campos apenas se informados
-        if (nome != null) vitrine.setNome(nome);
-        if (slug != null && !slug.equals(vitrine.getSlug())) {
-            // Validação: não permitir duplicação de slug
-            if (vitrineRepository.existsBySlug(slug)) {
-                throw new IllegalArgumentException("Já existe uma vitrine com este slug.");
-            }
-            vitrine.setSlug(slug);
+    @Transactional
+    public Vitrine executar(UUID id, Command command) {
+        Vitrine vitrine = vitrineRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Vitrine não encontrada com o ID: " + id));
+
+        // Verifica conflito de slug se o slug tiver alterado
+        if (!vitrine.getSlug().equals(command.slug()) && vitrineRepository.existsBySlug(command.slug())) {
+            throw new IllegalArgumentException("Já existe uma vitrine cadastrada com o slug: " + command.slug());
         }
-        if (titulo != null) vitrine.setTitulo(titulo);
-        if (subtitulo != null) vitrine.setSubtitulo(subtitulo);
-        if (ordem != null) vitrine.setOrdem(ordem);
-        if (ativo != null) vitrine.setAtivo(ativo);
 
-        // Atualizar timestamp
+        vitrine.setNome(command.nome());
+        vitrine.setSlug(command.slug());
+        vitrine.setTitulo(command.titulo());
+        vitrine.setSubtitulo(command.subtitulo());
+        vitrine.setOrdem(command.ordem() != null ? command.ordem() : 0);
+        vitrine.setAtivo(command.ativo() == null || command.ativo());
         vitrine.setAtualizadoEm(OffsetDateTime.now());
+
+        // Atualização da lista de produtos vinculados
+        if (command.produtosIds() != null) {
+            // Limpa os relacionamentos vinculados anteriormente
+            vitrine.getProdutos().clear();
+
+            for (int i = 0; i < command.produtosIds().size(); i++) {
+                UUID produtoId = command.produtosIds().get(i);
+                Produto produto = produtoRepository.findById(produtoId)
+                        .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com ID: " + produtoId));
+
+                VitrineProduto vp = new VitrineProduto();
+                vp.setId(new VitrineProdutoId(vitrine.getId(), produto.getId()));
+                vp.setVitrine(vitrine);
+                vp.setProduto(produto);
+                vp.setOrdem(i);
+
+                vitrine.getProdutos().add(vp);
+            }
+        }
 
         return vitrineRepository.save(vitrine);
     }

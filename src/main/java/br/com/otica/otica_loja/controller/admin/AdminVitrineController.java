@@ -1,10 +1,8 @@
 package br.com.otica.otica_loja.controller.admin;
 
-
 import br.com.otica.otica_loja.Entity.CMS.Vitrine;
 import br.com.otica.otica_loja.Entity.CMS.VitrineProduto;
-import br.com.otica.otica_loja.UseCases.cms.AdicionarProdutoVitrineUseCase;
-import br.com.otica.otica_loja.UseCases.cms.CriarVitrineUseCase;
+import br.com.otica.otica_loja.UseCases.cms.*;
 import br.com.otica.otica_loja.dto.cms.VincularProdutoRequestDTO;
 import br.com.otica.otica_loja.dto.cms.VitrineAdminRequestDTO;
 import jakarta.validation.Valid;
@@ -12,67 +10,90 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/vitrines")
-@CrossOrigin(origins = "*") // Lembre-se de configurar a segurança/CORS do Admin conforme seu projeto
+@CrossOrigin(origins = "*")
 public class AdminVitrineController {
 
-
-    // Dica: Assim que você criar os UseCases de Atualizar, Deletar e Listar, injete-os aqui de forma semelhante.
     private final CriarVitrineUseCase criarVitrineUseCase;
     private final AdicionarProdutoVitrineUseCase adicionarProdutoVitrineUseCase;
+    private final ListarVitrinesUseCase listarVitrinesUseCase;
+    private final AtualizarVitrineUseCase atualizarVitrineUseCase;
+    private final ExcluirVitrineUseCase deletarVitrineUseCase;
 
     public AdminVitrineController(
             CriarVitrineUseCase criarVitrineUseCase,
-            AdicionarProdutoVitrineUseCase adicionarProdutoVitrineUseCase
+            AdicionarProdutoVitrineUseCase adicionarProdutoVitrineUseCase,
+            ListarVitrinesUseCase listarVitrinesUseCase,
+            AtualizarVitrineUseCase atualizarVitrineUseCase,
+            ExcluirVitrineUseCase deletarVitrineUseCase
     ) {
         this.criarVitrineUseCase = criarVitrineUseCase;
         this.adicionarProdutoVitrineUseCase = adicionarProdutoVitrineUseCase;
+        this.listarVitrinesUseCase = listarVitrinesUseCase;
+        this.atualizarVitrineUseCase = atualizarVitrineUseCase;
+        this.deletarVitrineUseCase = deletarVitrineUseCase;
     }
 
     @GetMapping
-    public ResponseEntity<String> listarVitrines() {
-        // TODO: Implementar caso de uso de listagem para a tabela do painel administrativo
-        return ResponseEntity.ok("lista de vitrines");
+    public ResponseEntity<List<Vitrine>> listarVitrines() {
+        List<Vitrine> vitrines = listarVitrinesUseCase.executar();
+        return ResponseEntity.ok(vitrines);
     }
 
     @PostMapping
     public ResponseEntity<?> criarVitrine(@RequestBody @Valid VitrineAdminRequestDTO dto) {
         try {
-            // Converte o DTO recebido para o Command record esperado pelo UseCase
             CriarVitrineUseCase.Command command = new CriarVitrineUseCase.Command(
                     dto.nome(),
                     dto.slug(),
                     dto.titulo(),
                     dto.subtitulo(),
                     dto.ordem(),
-                    dto.ativo()
+                    dto.ativo(),
+                    dto.produtosIds()
             );
 
             Vitrine novaVitrine = criarVitrineUseCase.executar(command);
             return ResponseEntity.status(HttpStatus.CREATED).body(novaVitrine);
-
         } catch (IllegalArgumentException e) {
-            // Trata o erro caso o slug já exista (regra de negócio que você colocou no UseCase)
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(e.getMessage());
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> atualizarVitrine(@PathVariable UUID id, @RequestBody @Valid VitrineAdminRequestDTO dto) {
-        // Corrigido para UUID
-        // TODO: Criar e invocar o AtualizarVitrineUseCase
-        return ResponseEntity.ok("vitrine atualizada (id=" + id + ")");
+    public ResponseEntity<?> atualizarVitrine(@PathVariable UUID id, @RequestBody @Valid VitrineAdminRequestDTO dto) {
+        try {
+            AtualizarVitrineUseCase.Command command = new AtualizarVitrineUseCase.Command(
+                    dto.nome(),
+                    dto.slug(),
+                    dto.titulo(),
+                    dto.subtitulo(),
+                    dto.ordem(),
+                    dto.ativo(),
+                    dto.produtosIds()
+            );
+
+            Vitrine vitrineAtualizada = atualizarVitrineUseCase.executar(id, command);
+            return ResponseEntity.ok(vitrineAtualizada);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletarVitrine(@PathVariable UUID id) {
-        // Corrigido para UUID
-        // TODO: Criar e invocar o DeletarVitrineUseCase
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> deletarVitrine(@PathVariable UUID id) {
+        try {
+            deletarVitrineUseCase.executar(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
     }
+
     @PostMapping("/{id}/produtos")
     public ResponseEntity<?> vincularProduto(
             @PathVariable UUID id,
@@ -86,7 +107,7 @@ public class AdminVitrineController {
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(vinculo);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(e.getMessage());
         }
     }
 }
