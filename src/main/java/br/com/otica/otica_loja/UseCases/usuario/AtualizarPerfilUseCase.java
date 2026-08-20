@@ -6,9 +6,9 @@ import br.com.otica.otica_loja.Repository.Auth.PerfilRepository;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -21,22 +21,20 @@ public class AtualizarPerfilUseCase {
     private PerfilRepository perfilRepository;
 
     /**
-     * Atualiza os dados do perfil de um usuário.
+     * Atualiza os dados do perfil e do usuário associado.
      */
+    @Transactional
     public Perfil atualizar(UUID usuarioId,
                             String nome,
                             String telefone,
                             String username,
                             LocalDate dataNascimento,
-                            String cpf) {
+                            String cpf,
+                            String genero) {
 
         // 1. Buscar usuário
-        Optional<Usuario> usuarioOpt = usuarioRepository.findById(usuarioId);
-        if (usuarioOpt.isEmpty()) {
-            throw new IllegalArgumentException("Usuário não encontrado.");
-        }
-
-        Usuario usuario = usuarioOpt.get();
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado."));
 
         // 2. Buscar perfil associado
         Perfil perfil = usuario.getPerfil();
@@ -44,7 +42,7 @@ public class AtualizarPerfilUseCase {
             throw new IllegalStateException("Perfil não encontrado para este usuário.");
         }
 
-        // 3. Atualizar dados
+        // 3. Atualizar dados do Usuário e Perfil
         if (nome != null && !nome.isBlank()) {
             usuario.setNome(nome);
             perfil.setNome(nome);
@@ -67,10 +65,13 @@ public class AtualizarPerfilUseCase {
             perfil.setCpf(cpf);
         }
 
-        // 4. Persistir alterações
-        usuarioRepository.save(usuario);
-        perfilRepository.save(perfil);
+        // ✅ 4. Atualizar gênero (masculino, feminino, outros)
+        if (genero != null && !genero.isBlank()) {
+            perfil.setGenero(genero);
+        }
 
-        return perfil;
+        // 5. Persistir alterações
+        usuarioRepository.save(usuario);
+        return perfilRepository.save(perfil);
     }
 }

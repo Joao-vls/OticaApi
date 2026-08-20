@@ -27,43 +27,56 @@ public class CloudinaryService {
         int tentativa = 0;
         long tempoEsperaMs = 1500;
 
-        // Configura as opções de upload baseadas no tipo de mídia real
         Map<String, Object> options = new HashMap<>();
 
         if (tipoMidia == TipoMidia.THREE_D) {
-            options.put("resource_type", "raw"); // Arquivos .glb precisam ir como raw
+            options.put("resource_type", "raw");
             options.put("use_filename", true);
             options.put("unique_filename", true);
 
             String nomeOriginal = file.getOriginalFilename();
             if (nomeOriginal != null && !nomeOriginal.isBlank()) {
                 int pontoIndex = nomeOriginal.lastIndexOf('.');
-                // 🔥 GARANTE QUE A EXTENSÃO (ex: .glb) SEJA ADICIONADA AO PUBLIC_ID
                 if (pontoIndex > 0) {
-                    String extensao = nomeOriginal.substring(pontoIndex).toLowerCase(); // .glb
+                    String extensao = nomeOriginal.substring(pontoIndex).toLowerCase();
                     String nomeSemExtensao = nomeOriginal.substring(0, pontoIndex);
-
                     options.put("public_id", nomeSemExtensao + extensao);
                 } else {
                     options.put("public_id", nomeOriginal);
                 }
             }
         } else if (tipoMidia == TipoMidia.VIDEO) {
-            options.put("resource_type", "video"); // Vídeos precisam ir como video
+            // Define o tipo para vídeo
+            options.put("resource_type", "video");
         } else {
-            options.put("resource_type", "auto"); // Imagens podem ir como auto/image
+            // Imagens
+            options.put("resource_type", "image");
+            options.put("use_filename", true);
+            options.put("unique_filename", true);
+
+            String nomeOriginal = file.getOriginalFilename();
+            if (nomeOriginal != null && nomeOriginal.contains(".")) {
+                int pontoIndex = nomeOriginal.lastIndexOf('.');
+                String extensao = nomeOriginal.substring(pontoIndex + 1).toLowerCase();
+                options.put("format", extensao);
+            }
         }
 
         while (tentativa < maxTentativas) {
             try {
-                // Passa o mapa de opções configurado para o SDK
-                Map uploadResult = cloudinary.uploader().upload(file.getBytes(), options);
-                return uploadResult.get("secure_url").toString();
+                Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), options);
+
+                // Retorna a URL segura (HTTPS) persistida no banco
+                if (uploadResult != null && uploadResult.containsKey("secure_url")) {
+                    return uploadResult.get("secure_url").toString();
+                }
+
+                throw new IOException("O Cloudinary não retornou uma URL válida.");
 
             } catch (RuntimeException e) {
                 tentativa++;
 
-                if (e.getMessage().contains("429") && tentativa < maxTentativas) {
+                if (e.getMessage() != null && e.getMessage().contains("429") && tentativa < maxTentativas) {
                     log.warn("Cloudinary limitou a taxa (429). Tentativa {} de {}. Aguardando {}ms...",
                             tentativa, maxTentativas, tempoEsperaMs);
                     try {

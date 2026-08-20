@@ -1,9 +1,10 @@
 package br.com.otica.otica_loja.UseCases.categorias;
 
-import br.com.otica.otica_loja.Entity.Catalogo.Categoria;
 import br.com.otica.otica_loja.Repository.Catalogo.CategoriaRepository;
+import br.com.otica.otica_loja.dto.CategoriaResponseDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -16,21 +17,33 @@ public class ListarCategoriasUseCase {
     /**
      * Lista todas as categorias.
      */
-    public List<Categoria> listarTodas() {
-        return categoriaRepository.findAll();
+    @Transactional(readOnly = true)
+    public List<CategoriaResponseDTO> listarTodas() {
+        return categoriaRepository.findAll()
+                .stream()
+                .map(CategoriaResponseDTO::fromEntity)
+                .toList();
     }
 
     /**
      * Lista todas as categorias ativas.
      */
-    public List<Categoria> listarAtivas() {
-        return categoriaRepository.findByAtivoTrue();
+    @Transactional(readOnly = true)
+    public List<CategoriaResponseDTO> listarAtivas() {
+        return categoriaRepository.findByAtivoTrue()
+                .stream()
+                .map(CategoriaResponseDTO::fromEntity)
+                .toList();
     }
 
     /**
      * Lista todas as categorias inativas.
      */
-    public List<Categoria> listarInativas() {
-        return categoriaRepository.findByAtivoFalse();
+    @Transactional(readOnly = true)
+    public List<CategoriaResponseDTO> listarInativas() {
+        return categoriaRepository.findByAtivoFalse()
+                .stream()
+                .map(CategoriaResponseDTO::fromEntity)
+                .toList();
     }
 }

@@ -74,6 +74,8 @@ public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
     // Buscar itens de um produto específico
     List<PedidoItem> findByProduto(Produto produto);
 
+    boolean existsByProduto(Produto produto);
+
     // Buscar itens de uma variante específica
     List<PedidoItem> findByVariante(ProdutoVariante variante);
 

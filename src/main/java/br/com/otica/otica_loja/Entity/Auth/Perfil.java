@@ -1,5 +1,6 @@
 package br.com.otica.otica_loja.Entity.Auth;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // Import necessário
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,14 +15,14 @@ import java.util.UUID;
 @Table(name = "perfis", schema = "app")
 public class Perfil {
 
-    // Getters e Setters
     @Id
-    private UUID id; // mesmo ID do usuário em auth.usuarios
+    private UUID id;
 
     @OneToOne
     @MapsId
     @JoinColumn(name = "id")
-    private Usuario usuario; // ✅ relacionamento direto com Usuario
+    @JsonIgnore // 👈 CRÍTICO: Impede o loop infinito de serialização JSON
+    private Usuario usuario;
 
     @Column(unique = true, length = 50)
     private String username;
@@ -33,7 +34,7 @@ public class Perfil {
     private String telefone;
 
     @Column(length = 20)
-    private String genero; // masculino, feminino, outros
+    private String genero;
 
     @Column(name = "avatar_path", columnDefinition = "TEXT")
     private String avatarPath;
@@ -53,10 +54,14 @@ public class Perfil {
     @Column(nullable = false)
     private Boolean ativo = true;
 
-    @Column(name = "criado_em", nullable = false)
+    @Column(name = "criado_em", nullable = false, updatable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
+    @PreUpdate
+    public void preUpdate() {
+        this.atualizadoEm = OffsetDateTime.now();
+    }
 }

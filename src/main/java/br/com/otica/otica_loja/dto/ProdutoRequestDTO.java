@@ -28,7 +28,7 @@ public record ProdutoRequestDTO(
         BigDecimal preco,
 
         @NotBlank(message = "A categoria do óculos (ex: SOL, GRAU) é obrigatória")
-        String categoriaOculos,
+        String categoria,
 
         String specs, // String contendo JSON ou texto livre
 

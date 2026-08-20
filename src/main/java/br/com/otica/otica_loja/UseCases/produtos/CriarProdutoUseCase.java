@@ -29,16 +29,16 @@ public class CriarProdutoUseCase {
 
     @Transactional
     public Produto criar(ProdutoRequestDTO dto,
-                         List<MultipartFile> arquivosImagens,    // Isolado para mídias do tipo IMAGE
-                         List<MultipartFile> arquivosVideos,     // Isolado para mídias do tipo VIDEO
-                         List<MultipartFile> arquivosThumbnails, // Miniaturas associadas aos vídeos
-                         List<MultipartFile> arquivos3d) throws IOException { // Arquivos interativos .glb
+                         List<MultipartFile> arquivosImagens,
+                         List<MultipartFile> arquivosVideos,
+                         List<MultipartFile> arquivosThumbnails,
+                         List<MultipartFile> arquivos3d) throws IOException {
 
         if (produtoRepository.findBySlug(dto.slug()).isPresent()) {
             throw new IllegalArgumentException("Já existe um produto com este slug.");
         }
 
-        // 1. Cria o Produto base
+        // 1. Cria a estrutura do Produto base
         Produto produto = new Produto();
         produto.setMarcaId(dto.marcaId());
         produto.setCategoriaId(dto.categoriaId());
@@ -46,14 +46,14 @@ public class CriarProdutoUseCase {
         produto.setSlug(dto.slug());
         produto.setDescricao(dto.descricao());
         produto.setPreco(dto.preco());
-        produto.setCategoriaOculos(dto.categoriaOculos());
+        produto.setCategoria(dto.categoria());
         produto.setSpecs(dto.specs() != null ? dto.specs() : "{}");
-        produto.setDestaque(dto.destaque() != null ? dto.destaque() : false);
+        produto.setDestaque(dto.destaque() != null && dto.destaque());
         produto.setAtivo(true);
         produto.setCriadoEm(OffsetDateTime.now());
         produto.setAtualizadoEm(OffsetDateTime.now());
 
-        // 2. Mapeia e vincula as variantes criando o dicionário de referências
+        // 2. Mapeia e vincula as variantes
         Map<String, ProdutoVariante> variantesMapa = new HashMap<>();
         Set<ProdutoVariante> variantesEntidade = new LinkedHashSet<>();
 
@@ -84,7 +84,10 @@ public class CriarProdutoUseCase {
         }
         produto.setVariantes(variantesEntidade);
 
-        // 3. Processa mídias controlando ponteiros independentes por tipo real de forma estrita
+        // 3. Salva no banco PRIMEIRA VEZ para validar restrições e relacionamentos
+        Produto produtoSalvo = produtoRepository.save(produto);
+
+        // 4. Se o banco salvou sem erros, realiza os uploads dos arquivos
         Set<ProdutoMidia> midiasEntidade = new LinkedHashSet<>();
 
         if (dto.midias() != null) {
@@ -97,46 +100,32 @@ public class CriarProdutoUseCase {
                 MultipartFile arquivoFisico = null;
                 MultipartFile thumbnailFisica = null;
 
-                // Identificação e normalização defensiva do tipo de mídia
                 TipoMidia tipoMidia = mDto.tipo();
                 if (mDto.path() != null && mDto.path().toLowerCase().endsWith(".glb")) {
                     tipoMidia = TipoMidia.THREE_D;
                 }
 
-                // Captura o arquivo do ponteiro correto baseado estritamente no tipo normalizado
                 if (mDto.urlExterna() == null || mDto.urlExterna().isBlank()) {
-                    if (tipoMidia == TipoMidia.THREE_D) {
-                        if (arquivos3d != null && index3d < arquivos3d.size()) {
-                            arquivoFisico = arquivos3d.get(index3d);
-                            index3d++;
-                        }
-                    } else if (tipoMidia == TipoMidia.VIDEO) {
-                        if (arquivosVideos != null && indexVideo < arquivosVideos.size()) {
-                            arquivoFisico = arquivosVideos.get(indexVideo);
-                            indexVideo++;
-                        }
-                    } else if (tipoMidia == TipoMidia.IMAGE) {
-                        if (arquivosImagens != null && indexImagem < arquivosImagens.size()) {
-                            arquivoFisico = arquivosImagens.get(indexImagem);
-                            indexImagem++;
-                        }
+                    if (tipoMidia == TipoMidia.THREE_D && arquivos3d != null && index3d < arquivos3d.size()) {
+                        arquivoFisico = arquivos3d.get(index3d++);
+                    } else if (tipoMidia == TipoMidia.VIDEO && arquivosVideos != null && indexVideo < arquivosVideos.size()) {
+                        arquivoFisico = arquivosVideos.get(indexVideo++);
+                    } else if (tipoMidia == TipoMidia.IMAGE && arquivosImagens != null && indexImagem < arquivosImagens.size()) {
+                        arquivoFisico = arquivosImagens.get(indexImagem++);
                     }
                 }
 
-                // Captura a miniatura física de forma exclusiva para mídias do tipo VIDEO
                 if (tipoMidia == TipoMidia.VIDEO && (mDto.urlExternaThumbnail() == null || mDto.urlExternaThumbnail().isBlank())) {
                     if (arquivosThumbnails != null && indexThumbnail < arquivosThumbnails.size()) {
-                        thumbnailFisica = arquivosThumbnails.get(indexThumbnail);
-                        indexThumbnail++;
+                        thumbnailFisica = arquivosThumbnails.get(indexThumbnail++);
                     }
                 }
 
-                // Executa os uploads no Cloudinary usando a estratégia isolada
+                // O upload no Cloudinary ocorre somente após a primeira persistência com sucesso no DB
                 String pathResolvido = resolverMidiaProduto(arquivoFisico, mDto.urlExterna(), mDto.path(), tipoMidia);
                 String thumbResolvido = resolverMidiaProduto(thumbnailFisica, mDto.urlExternaThumbnail(), mDto.thumbnailPath(), TipoMidia.IMAGE);
 
-                // Se havia um arquivo local esperado para envio, mas ele falhou, pula o registro
-                if (pathResolvido == null || (pathResolvido.equals(mDto.path()) && arquivoFisico != null)) {
+                if (pathResolvido == null) {
                     continue;
                 }
 
@@ -147,9 +136,8 @@ public class CriarProdutoUseCase {
                 midia.setPosterPath(mDto.posterPath());
                 midia.setOrdem(mDto.ordem() != null ? mDto.ordem() : 0);
                 midia.setCriadoEm(OffsetDateTime.now());
-                midia.setProduto(produto);
+                midia.setProduto(produtoSalvo);
 
-                // Vincula a mídia à variante correta através do mapa de referências temporárias
                 if (mDto.refVariante() != null && variantesMapa.containsKey(mDto.refVariante())) {
                     midia.setVariante(variantesMapa.get(mDto.refVariante()));
                 }
@@ -157,15 +145,15 @@ public class CriarProdutoUseCase {
                 midiasEntidade.add(midia);
             }
         }
-        produto.setMidias(midiasEntidade);
 
-        return produtoRepository.save(produto);
+        produtoSalvo.setMidias(midiasEntidade);
+
+        // Atualiza o produto com as mídias salvas
+        return produtoRepository.save(produtoSalvo);
     }
-
 
     private String resolverMidiaProduto(MultipartFile file, String url, String valorAtual, TipoMidia tipo) throws IOException {
         if (file != null && !file.isEmpty()) {
-            // Agora repassa o 'tipo' para o service definir as options do Cloudinary
             return cloudinaryService.upload(file, tipo);
         }
 

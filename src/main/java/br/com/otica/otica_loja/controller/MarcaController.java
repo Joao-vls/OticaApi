@@ -1,7 +1,7 @@
 package br.com.otica.otica_loja.controller;
 
-import br.com.otica.otica_loja.Entity.Catalogo.Marca;
 import br.com.otica.otica_loja.UseCases.marcas.ListarMarcasUseCase;
+import br.com.otica.otica_loja.dto.MarcaResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,8 +18,8 @@ public class MarcaController {
 
     // Lista todas as marcas ativas no e-commerce
     @GetMapping
-    public ResponseEntity<List<Marca>> listarMarcas() {
-        List<Marca> marcas = listarMarcasUseCase.listarAtivas();
+    public ResponseEntity<List<MarcaResponseDTO>> listarMarcas() {
+        List<MarcaResponseDTO> marcas = listarMarcasUseCase.listarAtivas();
         return ResponseEntity.ok(marcas);
     }
 

@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -20,7 +21,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/admin/dashboard")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {"http://localhost:4200", "http://192.168.1.100:4200"}, allowCredentials = "true")
 public class AdminDashboardController {
 
     @Autowired
@@ -36,18 +37,21 @@ public class AdminDashboardController {
     private RegistrarAcessoUseCase registrarAcessoUseCase;
 
     @GetMapping("/atividade-vendas")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<DiaVendaDTO>> getAtividadeVendas(@RequestParam(defaultValue = "2026") int ano) {
         List<DiaVendaDTO> dados = obterAtividadeGridUseCase.obterDadosGrid(ano);
         return ResponseEntity.ok(dados);
     }
 
     @GetMapping("/ultimas-vendas")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<UltimaVendaDTO>> getUltimasVendas(@RequestParam(defaultValue = "10") int limite) {
         List<UltimaVendaDTO> ultimasVendas = obterUltimasVendasUseCase.executar(limite);
         return ResponseEntity.ok(ultimasVendas);
     }
 
     @GetMapping("/acessos-por-horario")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<AcessoHorarioDTO>> getAcessosPorHorario(
             @RequestParam(value = "data", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
@@ -61,12 +65,10 @@ public class AdminDashboardController {
             @RequestBody RegistrarLogAcessoDTO dto,
             HttpServletRequest request) {
 
-        // Captura o IP real do cliente
         String clientIp = request.getHeader("X-Forwarded-For");
         if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
             clientIp = request.getRemoteAddr();
         } else {
-            // Caso venha múltiplos IPs via Proxy/Nginx, pega o primeiro
             clientIp = clientIp.split(",")[0].trim();
         }
 

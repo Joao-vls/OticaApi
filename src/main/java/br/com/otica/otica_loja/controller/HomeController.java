@@ -22,17 +22,19 @@ public class HomeController {
     private final BuscarVitrinePorSlugUseCase buscarVitrinePorSlugUseCase;
     private final ListarVitrinesAtivasUseCase listarVitrinesAtivasUseCase;
 
-    // NOVO ENDPOINT: Retorna todas as vitrines ativas para a Home
     @GetMapping("/vitrines")
     public ResponseEntity<List<VitrineResponseDTO>> getVitrinesAtivas() {
         List<VitrineResponseDTO> vitrines = listarVitrinesAtivasUseCase.executar();
         return ResponseEntity.ok(vitrines);
     }
 
-    @GetMapping("/promo/{identificador}")
-    public ResponseEntity<PromoMainResponseDTO> getPromoPorIdentificador(@PathVariable String identificador) {
+    // BUSCA PELO LAYOUT TIPO (HORIZONTAL / VERTICAL) SOMENTE SE ESTIVER ATIVO
+    @GetMapping("/promo/layout/{layoutTipo}")
+    public ResponseEntity<PromoMainResponseDTO> getPromoPorLayoutTipo(@PathVariable String layoutTipo) {
 
-        return bannerEditorialRepository.findByIdentificador(identificador)
+        String tipoUpper = layoutTipo.trim().toUpperCase();
+
+        return bannerEditorialRepository.findFirstByLayoutTipoAndAtivoTrueOrderByIdDesc(tipoUpper)
                 .map(banner -> {
 
                     PromoSectionDTO topSection = new PromoSectionDTO(

@@ -3,18 +3,20 @@ package br.com.otica.otica_loja.Entity.Auth;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Setter
 @Getter
 @Entity
 @Table(name = "usuarios", schema = "loja")
-public class Usuario {
+public class Usuario implements UserDetails {
 
-    // Getters e Setters
-    @Setter
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -55,7 +57,6 @@ public class Usuario {
     )
     private Set<Permissao> permissoes = new HashSet<>();
 
-    // Construtores
     public Usuario() {}
 
     public Usuario(Perfil perfil) {
@@ -63,9 +64,48 @@ public class Usuario {
         perfil.setUsuario(this);
     }
 
-
-
     public void addPermissao(Permissao permissao) {
         this.permissoes.add(permissao);
     }
+
+    // Métodos do UserDetails
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (permissoes == null || permissoes.isEmpty()) {
+            return Collections.emptySet();
+        }
+
+        return permissoes.stream()
+                .map(p -> {
+                    String nomePermissao = p.getNome().name().toUpperCase();
+                    // Se o Enum/Nome já tiver "ROLE_", não adiciona novamente
+                    if (!nomePermissao.startsWith("ROLE_")) {
+                        nomePermissao = "ROLE_" + nomePermissao;
+                    }
+                    return new SimpleGrantedAuthority(nomePermissao);
+                })
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    public String getPassword() {
+        return this.senhaHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return this.ativo; }
 }

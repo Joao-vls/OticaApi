@@ -13,7 +13,6 @@ import java.util.UUID;
 @Table(name = "sessoes", schema = "loja")
 public class Sessao {
 
-    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -23,6 +22,14 @@ public class Sessao {
 
     @Column(name = "token", nullable = false, unique = true)
     private String token;
+
+    // 🔒 Campo para identificar o navegador/dispositivo que criou a sessão
+    @Column(name = "user_agent", columnDefinition = "TEXT")
+    private String userAgent;
+
+    // 🔒 Opcional: Registra o IP para auditoria/validação extra
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
 
     @Column(name = "expira_em", nullable = false)
     private OffsetDateTime expiraEm;

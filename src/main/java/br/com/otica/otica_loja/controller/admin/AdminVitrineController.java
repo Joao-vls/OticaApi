@@ -8,6 +8,7 @@ import br.com.otica.otica_loja.dto.cms.VitrineAdminRequestDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/vitrines")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true")
 public class AdminVitrineController {
 
     private final CriarVitrineUseCase criarVitrineUseCase;
@@ -38,13 +39,17 @@ public class AdminVitrineController {
         this.deletarVitrineUseCase = deletarVitrineUseCase;
     }
 
+    // Gerente e Admin podem visualizar as vitrines
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<Vitrine>> listarVitrines() {
         List<Vitrine> vitrines = listarVitrinesUseCase.executar();
         return ResponseEntity.ok(vitrines);
     }
 
+    // Apenas Admin pode criar
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> criarVitrine(@RequestBody @Valid VitrineAdminRequestDTO dto) {
         try {
             CriarVitrineUseCase.Command command = new CriarVitrineUseCase.Command(
@@ -64,7 +69,9 @@ public class AdminVitrineController {
         }
     }
 
+    // Apenas Admin pode atualizar
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> atualizarVitrine(@PathVariable UUID id, @RequestBody @Valid VitrineAdminRequestDTO dto) {
         try {
             AtualizarVitrineUseCase.Command command = new AtualizarVitrineUseCase.Command(
@@ -84,7 +91,9 @@ public class AdminVitrineController {
         }
     }
 
+    // Apenas Admin pode deletar
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deletarVitrine(@PathVariable UUID id) {
         try {
             deletarVitrineUseCase.executar(id);
@@ -94,7 +103,9 @@ public class AdminVitrineController {
         }
     }
 
+    // Apenas Admin pode vincular produtos diretamente
     @PostMapping("/{id}/produtos")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> vincularProduto(
             @PathVariable UUID id,
             @RequestBody @Valid VincularProdutoRequestDTO dto

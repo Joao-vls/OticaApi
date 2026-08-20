@@ -1,7 +1,7 @@
 package br.com.otica.otica_loja.controller;
 
-import br.com.otica.otica_loja.Entity.Catalogo.Categoria;
 import br.com.otica.otica_loja.UseCases.categorias.ListarCategoriasUseCase;
+import br.com.otica.otica_loja.dto.CategoriaResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,8 +18,8 @@ public class CategoriaController {
 
     // Lista todas as categorias ativas
     @GetMapping
-    public ResponseEntity<List<Categoria>> listarCategorias() {
-        List<Categoria> categorias = listarCategoriasUseCase.listarAtivas();
+    public ResponseEntity<List<CategoriaResponseDTO>> listarCategorias() {
+        List<CategoriaResponseDTO> categorias = listarCategoriasUseCase.listarAtivas();
         return ResponseEntity.ok(categorias);
     }
 

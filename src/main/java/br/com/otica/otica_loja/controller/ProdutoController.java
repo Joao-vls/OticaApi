@@ -31,12 +31,15 @@ public class ProdutoController {
         return ResponseEntity.ok(resultados);
     }
 
+    // Mantém /produtos para a loja (apenas ativos)
     @GetMapping
     public ResponseEntity<List<Produto>> listarTodosAtivos() {
         List<Produto> produtos = listarProdutosUseCase.listarAtivos();
         return ResponseEntity.ok(produtos);
     }
-    @GetMapping
+
+    // Define um endpoint específico para listar inclusive os inativos (ex: uso administrativo)
+    @GetMapping("/todos")
     public ResponseEntity<List<Produto>> listarTodos() {
         List<Produto> produtos = listarProdutosUseCase.listarTodos();
         return ResponseEntity.ok(produtos);

@@ -18,6 +18,19 @@ public interface BannerEditorialRepository extends JpaRepository<BannerEditorial
     // Verificar se já existe banner editorial com determinado identificador
     boolean existsByIdentificador(String identificador);
 
+    // --- NOVOS MÉTODOS POR LAYOUT TIPO (HORIZONTAL / VERTICAL) ---
+
+    // Busca o primeiro banner (mais recente cadastrado) pelo tipo de layout
+    Optional<BannerEditorial> findFirstByLayoutTipoOrderByIdDesc(String layoutTipo);
+
+    // Busca o primeiro banner ATIVO pelo tipo de layout
+    Optional<BannerEditorial> findFirstByLayoutTipoAndAtivoTrueOrderByIdDesc(String layoutTipo);
+
+    // Lista todos os banners filtrados pelo tipo de layout
+    List<BannerEditorial> findByLayoutTipo(String layoutTipo);
+
+    // --- MÉTODOS DE FILTRO GERAIS ---
+
     // Buscar banners editoriais ativos
     List<BannerEditorial> findByAtivoTrue();
 

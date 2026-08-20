@@ -42,7 +42,7 @@ public class Produto {
     private BigDecimal preco;
 
     @Column(name = "categoria_oculos", nullable = false, length = 20)
-    private String categoriaOculos;
+    private String categoria;
 
     @Column(name = "specs", columnDefinition = "jsonb", nullable = false)
     @JdbcTypeCode(SqlTypes.JSON)

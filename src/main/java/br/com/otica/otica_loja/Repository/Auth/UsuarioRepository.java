@@ -16,6 +16,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     // Verificar se já existe usuário com determinado email
     boolean existsByEmail(String email);
 
+    //Verificar se já existe outro usuário com o mesmo email (excluindo o ID atual)
+    boolean existsByEmailAndIdNot(String email, UUID id);
+
     // Buscar usuários ativos
     Optional<Usuario> findByEmailAndAtivoTrue(String email);
+
 }

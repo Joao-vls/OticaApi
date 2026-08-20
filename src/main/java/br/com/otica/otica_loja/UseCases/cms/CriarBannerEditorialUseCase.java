@@ -1,0 +1,90 @@
+package br.com.otica.otica_loja.UseCases.cms;
+
+import br.com.otica.otica_loja.Entity.CMS.BannerEditorial;
+import br.com.otica.otica_loja.Repository.CMS.BannerEditorialRepository;
+import br.com.otica.otica_loja.enums.TipoMidia;
+import br.com.otica.otica_loja.service.cms.CloudinaryService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
+@Service
+@RequiredArgsConstructor
+public class CriarBannerEditorialUseCase {
+
+    private final BannerEditorialRepository bannerEditorialRepository;
+    private final CloudinaryService cloudinaryService;
+
+    public BannerEditorial executar(
+            String identificador,
+            String layoutTipo,
+            String textoMarca,
+            MultipartFile logoFile, String logoUrl,
+            MultipartFile sec1MediaFile, String sec1MediaUrl, String sec1Titulo, String sec1TituloDestaque,
+            String sec1Descricao, String sec1ProdutoNome, BigDecimal sec1Preco, Integer sec1Desconto, String sec1LinkUrl,
+            MultipartFile sec2MediaFile, String sec2MediaUrl, String sec2Titulo, String sec2TituloDestaque,
+            String sec2Descricao, String sec2ProdutoNome, BigDecimal sec2Preco, Integer sec2Desconto, String sec2LinkUrl
+    ) throws IOException {
+
+        if (bannerEditorialRepository.findByIdentificador(identificador).isPresent()) {
+            throw new IllegalArgumentException("Já existe um banner com o identificador: " + identificador);
+        }
+
+        BannerEditorial banner = new BannerEditorial();
+        banner.setIdentificador(identificador);
+        banner.setLayoutTipo(layoutTipo);
+        banner.setTextoMarca(textoMarca);
+        banner.setAtivo(true);
+        banner.setAtualizadoEm(OffsetDateTime.now());
+
+        // Processa mídias
+        banner.setLogoPath(resolverMidia(logoFile, logoUrl, null));
+        banner.setSec1MediaPath(resolverMidia(sec1MediaFile, sec1MediaUrl, null));
+        banner.setSec2MediaPath(resolverMidia(sec2MediaFile, sec2MediaUrl, null));
+
+        // Seção 1
+        banner.setSec1Titulo(sec1Titulo);
+        banner.setSec1TituloDestaque(sec1TituloDestaque);
+        banner.setSec1Descricao(sec1Descricao);
+        banner.setSec1ProdutoNome(sec1ProdutoNome);
+        banner.setSec1Preco(sec1Preco);
+        banner.setSec1Desconto(sec1Desconto);
+        banner.setSec1LinkUrl(sec1LinkUrl);
+
+        // Seção 2
+        banner.setSec2Titulo(sec2Titulo);
+        banner.setSec2TituloDestaque(sec2TituloDestaque);
+        banner.setSec2Descricao(sec2Descricao);
+        banner.setSec2ProdutoNome(sec2ProdutoNome);
+        banner.setSec2Preco(sec2Preco);
+        banner.setSec2Desconto(sec2Desconto);
+        banner.setSec2LinkUrl(sec2LinkUrl);
+
+        return bannerEditorialRepository.save(banner);
+    }
+
+    private String resolverMidia(MultipartFile file, String url, String valorAtual) throws IOException {
+        if (file != null && !file.isEmpty()) {
+            TipoMidia tipoDetectado = detectarTipoPorNomeArquivo(file.getOriginalFilename());
+            return cloudinaryService.upload(file, tipoDetectado);
+        }
+        if (url != null && !url.isBlank()) {
+            return url;
+        }
+        return valorAtual;
+    }
+
+    private TipoMidia detectarTipoPorNomeArquivo(String nomeArquivo) {
+        if (nomeArquivo == null) return TipoMidia.IMAGE;
+        String nomeMinusculo = nomeArquivo.toLowerCase();
+        if (nomeMinusculo.endsWith(".mp4") || nomeMinusculo.endsWith(".mov") ||
+                nomeMinusculo.endsWith(".webm") || nomeMinusculo.endsWith(".avi")) {
+            return TipoMidia.VIDEO;
+        }
+        return TipoMidia.IMAGE;
+    }
+}

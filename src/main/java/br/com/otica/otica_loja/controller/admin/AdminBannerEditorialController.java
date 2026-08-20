@@ -2,50 +2,60 @@ package br.com.otica.otica_loja.controller.admin;
 
 import br.com.otica.otica_loja.Entity.CMS.BannerEditorial;
 import br.com.otica.otica_loja.Repository.CMS.BannerEditorialRepository;
-import br.com.otica.otica_loja.UseCases.cms.SalvarBannerEditorialUseCase;
+import br.com.otica.otica_loja.UseCases.cms.AtualizarBannerEditorialUseCase;
+import br.com.otica.otica_loja.UseCases.cms.CriarBannerEditorialUseCase;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/banners-editoriais")
+@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true")
 @RequiredArgsConstructor
 public class AdminBannerEditorialController {
 
-    private final SalvarBannerEditorialUseCase salvarBannerEditorialUseCase;
+    private final CriarBannerEditorialUseCase criarBannerEditorialUseCase;
+    private final AtualizarBannerEditorialUseCase atualizarBannerEditorialUseCase;
     private final BannerEditorialRepository bannerEditorialRepository;
 
+    // Gerente e Admin podem listar/visualizar
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<BannerEditorial>> listarTodos() {
-        List<BannerEditorial> lista = bannerEditorialRepository.findAll();
-        return ResponseEntity.ok(lista);
+        return ResponseEntity.ok(bannerEditorialRepository.findAll());
     }
 
     @GetMapping("/{identificador}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<BannerEditorial> buscarPorIdentificador(@PathVariable String identificador) {
         return bannerEditorialRepository.findByIdentificador(identificador)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // --- CRIAR NOVO BANNER (Apenas ADMIN) ---
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<BannerEditorial> salvarOuAtualizar(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BannerEditorial> criar(
             @RequestParam String identificador,
             @RequestParam String layoutTipo,
+            @RequestParam(required = false, defaultValue = "true") Boolean ativo,
             @RequestParam(required = false) String textoMarca,
             @RequestPart(required = false) MultipartFile logoFile,
-            @RequestParam(required = false) String logoUrl, // Novo: URL de logo opcional
+            @RequestParam(required = false) String logoUrl,
 
-            // Parâmetros da Seção 1 (Topo / Esquerda)
             @RequestPart(required = false) MultipartFile sec1MediaFile,
-            @RequestParam(required = false) String sec1MediaUrl, // Novo: URL de mídia opcional para Seção 1
+            @RequestParam(required = false) String sec1MediaUrl,
             @RequestParam(required = false) String sec1Titulo,
             @RequestParam(required = false) String sec1TituloDestaque,
             @RequestParam(required = false) String sec1Descricao,
@@ -54,9 +64,8 @@ public class AdminBannerEditorialController {
             @RequestParam(required = false) Integer sec1Desconto,
             @RequestParam(required = false) String sec1LinkUrl,
 
-            // Parâmetros da Seção 2 (Fundo / Direita)
             @RequestPart(required = false) MultipartFile sec2MediaFile,
-            @RequestParam(required = false) String sec2MediaUrl, // Novo: URL de mídia opcional para Seção 2
+            @RequestParam(required = false) String sec2MediaUrl,
             @RequestParam(required = false) String sec2Titulo,
             @RequestParam(required = false) String sec2TituloDestaque,
             @RequestParam(required = false) String sec2Descricao,
@@ -66,47 +75,113 @@ public class AdminBannerEditorialController {
             @RequestParam(required = false) String sec2LinkUrl
     ) throws IOException {
 
-        // Limpeza preventiva: se o arquivo foi enviado vazio pelo cliente REST, força como nulo
-        MultipartFile logoFinal = (logoFile != null && !logoFile.isEmpty()) ? logoFile : null;
-        MultipartFile sec1MediaFinal = (sec1MediaFile != null && !sec1MediaFile.isEmpty()) ? sec1MediaFile : null;
-        MultipartFile sec2MediaFinal = (sec2MediaFile != null && !sec2MediaFile.isEmpty()) ? sec2MediaFile : null;
+        String layoutSanitizado = validarELimparLayoutTipo(layoutTipo);
 
-        // Executa o Use Case passando tanto os arquivos quanto as strings de URL
-        BannerEditorial banner = salvarBannerEditorialUseCase.salvarOuAtualizar(
-                identificador,
-                layoutTipo,
-                textoMarca,
-                logoFinal,
-                logoUrl,
-                sec1MediaFinal,
-                sec1MediaUrl,
-                sec1Titulo,
-                sec1TituloDestaque,
-                sec1Descricao,
-                sec1ProdutoNome,
-                sec1Preco,
-                sec1Desconto,
-                sec1LinkUrl,
-                sec2MediaFinal,
-                sec2MediaUrl,
-                sec2Titulo,
-                sec2TituloDestaque,
-                sec2Descricao,
-                sec2ProdutoNome,
-                sec2Preco,
-                sec2Desconto,
-                sec2LinkUrl
+        BannerEditorial banner = criarBannerEditorialUseCase.executar(
+                identificador, layoutSanitizado, textoMarca,
+                limparArquivoVazio(logoFile), logoUrl,
+                limparArquivoVazio(sec1MediaFile), sec1MediaUrl, sec1Titulo, sec1TituloDestaque,
+                sec1Descricao, sec1ProdutoNome, sec1Preco, sec1Desconto, sec1LinkUrl,
+                limparArquivoVazio(sec2MediaFile), sec2MediaUrl, sec2Titulo, sec2TituloDestaque,
+                sec2Descricao, sec2ProdutoNome, sec2Preco, sec2Desconto, sec2LinkUrl
         );
+
+        banner.setAtivo(ativo != null ? ativo : true);
+        banner.setAtualizadoEm(OffsetDateTime.now());
+        banner = bannerEditorialRepository.save(banner);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(banner);
+    }
+
+    // --- ATUALIZAR BANNER EXISTENTE (Apenas ADMIN) ---
+    @PutMapping(value = "/{identificador}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BannerEditorial> atualizar(
+            @PathVariable String identificador,
+            @RequestParam String layoutTipo,
+            @RequestParam(required = false, defaultValue = "true") Boolean ativo,
+            @RequestParam(required = false) String textoMarca,
+            @RequestPart(required = false) MultipartFile logoFile,
+            @RequestParam(required = false) String logoUrl,
+
+            @RequestPart(required = false) MultipartFile sec1MediaFile,
+            @RequestParam(required = false) String sec1MediaUrl,
+            @RequestParam(required = false) String sec1Titulo,
+            @RequestParam(required = false) String sec1TituloDestaque,
+            @RequestParam(required = false) String sec1Descricao,
+            @RequestParam(required = false) String sec1ProdutoNome,
+            @RequestParam(required = false) BigDecimal sec1Preco,
+            @RequestParam(required = false) Integer sec1Desconto,
+            @RequestParam(required = false) String sec1LinkUrl,
+
+            @RequestPart(required = false) MultipartFile sec2MediaFile,
+            @RequestParam(required = false) String sec2MediaUrl,
+            @RequestParam(required = false) String sec2Titulo,
+            @RequestParam(required = false) String sec2TituloDestaque,
+            @RequestParam(required = false) String sec2Descricao,
+            @RequestParam(required = false) String sec2ProdutoNome,
+            @RequestParam(required = false) BigDecimal sec2Preco,
+            @RequestParam(required = false) Integer sec2Desconto,
+            @RequestParam(required = false) String sec2LinkUrl
+    ) throws IOException {
+
+        String layoutSanitizado = validarELimparLayoutTipo(layoutTipo);
+
+        BannerEditorial banner = atualizarBannerEditorialUseCase.executar(
+                identificador, layoutSanitizado, textoMarca,
+                limparArquivoVazio(logoFile), logoUrl,
+                limparArquivoVazio(sec1MediaFile), sec1MediaUrl, sec1Titulo, sec1TituloDestaque,
+                sec1Descricao, sec1ProdutoNome, sec1Preco, sec1Desconto, sec1LinkUrl,
+                limparArquivoVazio(sec2MediaFile), sec2MediaUrl, sec2Titulo, sec2TituloDestaque,
+                sec2Descricao, sec2ProdutoNome, sec2Preco, sec2Desconto, sec2LinkUrl
+        );
+
+        banner.setAtivo(ativo != null ? ativo : true);
+        banner.setAtualizadoEm(OffsetDateTime.now());
+        banner = bannerEditorialRepository.save(banner);
 
         return ResponseEntity.ok(banner);
     }
 
+    // --- ALTERAR APENAS STATUS (Apenas ADMIN) ---
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BannerEditorial> alternarStatus(
+            @PathVariable UUID id,
+            @RequestParam Boolean ativo
+    ) {
+        return bannerEditorialRepository.findById(id)
+                .map(banner -> {
+                    banner.setAtivo(ativo);
+                    banner.setAtualizadoEm(OffsetDateTime.now());
+                    return ResponseEntity.ok(bannerEditorialRepository.save(banner));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // --- DELETAR BANNER (Apenas ADMIN) ---
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletarBannerEditorial(@PathVariable UUID id) {
         if (!bannerEditorialRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
         bannerEditorialRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private String validarELimparLayoutTipo(String layoutTipo) {
+        if (layoutTipo == null) {
+            return "HORIZONTAL";
+        }
+        String valorNorm = layoutTipo.trim().toUpperCase();
+        if ("HORIZONTAL".equals(valorNorm) || "VERTICAL".equals(valorNorm)) {
+            return valorNorm;
+        }
+        throw new IllegalArgumentException("Tipo de layout inválido. Aceitos apenas: HORIZONTAL ou VERTICAL.");
+    }
+
+    private MultipartFile limparArquivoVazio(MultipartFile file) {
+        return (file != null && !file.isEmpty()) ? file : null;
     }
 }

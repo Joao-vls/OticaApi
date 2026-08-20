@@ -23,4 +23,6 @@ public interface VitrineProdutoRepository extends JpaRepository<VitrineProduto, 
 
     // Remover vínculo de produto em uma vitrine
     void deleteByVitrineAndProduto(Vitrine vitrine, Produto produto);
+
+    void deleteByProduto(Produto produto);
 }
