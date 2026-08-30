@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/auth/**", "/api/auth/**", "/auth/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/produtos/**", "/categorias/**", "/marcas/**", "/home/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/avaliacoes/produto/**").permitAll()
 
                         // Áreas administrativas (Nota: hasAnyRole remove o prefixo ROLE_ internamente)
                         .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE")
@@ -57,7 +58,7 @@ public class SecurityConfig {
 
                         // Área restrita do cliente
                         .requestMatchers("/cliente/**", "/api/cliente/**").hasAnyRole("CLIENTE","ADMIN")
-
+                        .requestMatchers("/api/avaliacoes/pode-avaliar/**").hasAnyRole("CLIENTE", "ADMIN")
                         // Qualquer outra rota exige autenticação
                         .anyRequest().authenticated()
                 )

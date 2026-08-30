@@ -1,9 +1,8 @@
 package br.com.otica.otica_loja.controller;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
-import br.com.otica.otica_loja.UseCases.produtos.BuscarProdutoPorSlugUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.ListarProdutosUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.PesquisarProdutosUseCase;
+import br.com.otica.otica_loja.UseCases.produtos.*;
+import br.com.otica.otica_loja.dto.FiltrosDisponiveisDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +18,10 @@ public class ProdutoController {
 
     private final ListarProdutosUseCase listarProdutosUseCase;
     private final BuscarProdutoPorSlugUseCase buscarProdutoPorSlugUseCase;
+    private final BuscarProdutoPorIdUseCase buscarProdutoPorIdUseCase;
     private final PesquisarProdutosUseCase pesquisarProdutosUseCase;
+    private final BuscarProdutoPorVarianteUseCase buscarProdutoPorVarianteUseCase;
+    private final ObterFiltrosDisponiveisUseCase obterFiltrosDisponiveisUseCase;
 
     @GetMapping("/pesquisar")
     public ResponseEntity<List<Produto>> pesquisar(@RequestParam(value = "termo", required = false) String termo) {
@@ -31,18 +33,25 @@ public class ProdutoController {
         return ResponseEntity.ok(resultados);
     }
 
-    // Mantém /produtos para a loja (apenas ativos)
+    @GetMapping("/filtros")
+    public ResponseEntity<FiltrosDisponiveisDTO> obterFiltros() {
+        FiltrosDisponiveisDTO filtros = obterFiltrosDisponiveisUseCase.executar();
+        return ResponseEntity.ok(filtros);
+    }
     @GetMapping
     public ResponseEntity<List<Produto>> listarTodosAtivos() {
         List<Produto> produtos = listarProdutosUseCase.listarAtivos();
         return ResponseEntity.ok(produtos);
     }
 
-    // Define um endpoint específico para listar inclusive os inativos (ex: uso administrativo)
     @GetMapping("/todos")
     public ResponseEntity<List<Produto>> listarTodos() {
-        List<Produto> produtos = listarProdutosUseCase.listarTodos();
+        List<Produto> produtos = listarTodosAtivosInativos();
         return ResponseEntity.ok(produtos);
+    }
+
+    private List<Produto> listarTodosAtivosInativos() {
+        return listarProdutosUseCase.listarTodos();
     }
 
     @GetMapping("/destaques")
@@ -51,10 +60,28 @@ public class ProdutoController {
         return ResponseEntity.ok(produtosDestaque);
     }
 
-    @GetMapping("/{slug}")
-    public ResponseEntity<Produto> produtoPorSlug(@PathVariable String slug) {
+    // 🔄 ÚNICO endpoint unificado para tratar Slug ou ID principal (UUID) do produto
+    @GetMapping("/{identificador}")
+    public ResponseEntity<Produto> produtoPorSlugOuId(@PathVariable String identificador) {
         try {
-            Produto produto = buscarProdutoPorSlugUseCase.executar(slug);
+            Produto produto;
+            try {
+                java.util.UUID produtoId = java.util.UUID.fromString(identificador);
+                produto = buscarProdutoPorIdUseCase.buscarPorId(produtoId);
+            } catch (IllegalArgumentException uuidEx) {
+                produto = buscarProdutoPorSlugUseCase.executar(identificador);
+            }
+            return ResponseEntity.ok(produto);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // Rota específica para variantes (mantida intacta)
+    @GetMapping("/variante/{varianteId}")
+    public ResponseEntity<Produto> produtoPorVarianteId(@PathVariable String varianteId) {
+        try {
+            Produto produto = buscarProdutoPorVarianteUseCase.executar(varianteId);
             return ResponseEntity.ok(produto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

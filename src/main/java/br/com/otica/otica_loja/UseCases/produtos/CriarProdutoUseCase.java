@@ -1,8 +1,10 @@
 package br.com.otica.otica_loja.UseCases.produtos;
 
+import br.com.otica.otica_loja.Entity.Catalogo.Categoria;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoMidia;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
+import br.com.otica.otica_loja.Repository.Catalogo.CategoriaRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.dto.ProdutoRequestDTO;
 import br.com.otica.otica_loja.enums.TipoMidia;
@@ -14,17 +16,14 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class CriarProdutoUseCase {
 
     private final ProdutoRepository produtoRepository;
+    private final CategoriaRepository categoriaRepository;
     private final CloudinaryService cloudinaryService;
 
     @Transactional
@@ -41,17 +40,28 @@ public class CriarProdutoUseCase {
         // 1. Cria a estrutura do Produto base
         Produto produto = new Produto();
         produto.setMarcaId(dto.marcaId());
-        produto.setCategoriaId(dto.categoriaId());
         produto.setNome(dto.nome());
         produto.setSlug(dto.slug());
         produto.setDescricao(dto.descricao());
         produto.setPreco(dto.preco());
-        produto.setCategoria(dto.categoria());
+
+        // Mapeamento dos novos campos e enums
+        if (dto.grausDisponiveis() != null) {
+            produto.setGrausDisponiveis(dto.grausDisponiveis());
+        }
+        produto.setPermiteLenteGrau(dto.permiteLenteGrau() != null && dto.permiteLenteGrau());
+        produto.setPermiteReceita(dto.permiteReceita() != null && dto.permiteReceita());
         produto.setSpecs(dto.specs() != null ? dto.specs() : "{}");
         produto.setDestaque(dto.destaque() != null && dto.destaque());
         produto.setAtivo(true);
         produto.setCriadoEm(OffsetDateTime.now());
         produto.setAtualizadoEm(OffsetDateTime.now());
+
+        // Associação de N categorias
+        if (dto.categoriasIds() != null && !dto.categoriasIds().isEmpty()) {
+            List<Categoria> categoriasEncontradas = categoriaRepository.findAllById(dto.categoriasIds());
+            produto.setCategorias(new LinkedHashSet<>(categoriasEncontradas));
+        }
 
         // 2. Mapeia e vincula as variantes
         Map<String, ProdutoVariante> variantesMapa = new HashMap<>();
@@ -121,7 +131,6 @@ public class CriarProdutoUseCase {
                     }
                 }
 
-                // O upload no Cloudinary ocorre somente após a primeira persistência com sucesso no DB
                 String pathResolvido = resolverMidiaProduto(arquivoFisico, mDto.urlExterna(), mDto.path(), tipoMidia);
                 String thumbResolvido = resolverMidiaProduto(thumbnailFisica, mDto.urlExternaThumbnail(), mDto.thumbnailPath(), TipoMidia.IMAGE);
 
@@ -148,7 +157,6 @@ public class CriarProdutoUseCase {
 
         produtoSalvo.setMidias(midiasEntidade);
 
-        // Atualiza o produto com as mídias salvas
         return produtoRepository.save(produtoSalvo);
     }
 

@@ -26,9 +26,14 @@ public interface ProdutoAvaliacaoRepository extends JpaRepository<ProdutoAvaliac
 
     List<ProdutoAvaliacao> findByProdutoAndAprovadoFalse(Produto produto);
 
+    List<ProdutoAvaliacao> findByUsuarioId(UUID usuarioId);
+
     // Buscar avaliações por nota
     List<ProdutoAvaliacao> findByProdutoAndNota(Produto produto, Integer nota);
 
     // Buscar avaliações pendentes de aprovação
     List<ProdutoAvaliacao> findByAprovadoFalse();
+
+    // 🔴 NOVO: Verificar se o usuário possui alguma avaliação pendente de aprovação
+    boolean existsByUsuarioIdAndAprovadoFalse(UUID usuarioId);
 }

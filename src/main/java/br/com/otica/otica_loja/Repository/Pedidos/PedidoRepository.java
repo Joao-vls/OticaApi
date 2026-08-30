@@ -37,4 +37,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
 
     // Verificar se já existe pedido com determinado número
     boolean existsByNumero(Long numero);
+
+    // 🔴 NOVO: Buscar o último pedido realizado pelo usuário ordenado por data descendente
+    Optional<Pedido> findTopByUsuarioIdOrderByCriadoEmDesc(UUID usuarioId);
 }

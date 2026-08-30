@@ -12,7 +12,17 @@ import java.util.UUID;
 
 @Repository
 public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
+    @Query(value = "SELECT kv.key AS chave, kv.value AS valor " +
+            "FROM loja.produtos p, " +
+            "jsonb_each_text(p.specs::jsonb) AS kv " +
+            "WHERE p.ativo = true AND p.deletado_em IS NULL",
+            nativeQuery = true)
+    List<SpecKeyValueProjection> buscarTodasSpecsAtivas();
 
+    interface SpecKeyValueProjection {
+        String getChave();
+        String getValor();
+    }
     @Query("SELECT p FROM Produto p " +
             "LEFT JOIN FETCH p.variantes " +
             "LEFT JOIN FETCH p.midias " +
@@ -27,7 +37,12 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
             nativeQuery = true)
     List<Produto> findByNomeContainingIgnoreCase(@Param("termo") String termo);
 
-    List<Produto> findByCategoriaId(UUID categoriaId);
+    // 🔥 BUSCA EM N:N (Mapeia a propriedade 'id' dentro do Set<Categoria> 'categorias')
+    List<Produto> findByCategorias_Id(UUID categoriaId);
+
+    // 🔥 VERIFICA SE EXISTE PRODUTO VINCULADO À CATEGORIA
+    boolean existsByCategorias_Id(UUID categoriaId);
+
     List<Produto> findByMarcaId(UUID marcaId);
 
     // 🔥 VERIFICA SE EXISTE ALGUM PRODUTO VINCULADO À MARCA

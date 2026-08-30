@@ -15,7 +15,7 @@ import java.util.UUID;
 @Getter
 @Entity
 @Table(name = "pedidos", schema = "loja")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // 👈 Evita que o Jackson quebre ao tentar serializar proxies LAZY vazios
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Pedido {
 
     @Id
@@ -31,11 +31,14 @@ public class Pedido {
     @Column(name = "endereco_id")
     private UUID enderecoId;
 
+    @Column(name = "order_id_mercadopago", length = 100)
+    private String orderIdMercadoPago; // 👈 Campo adicionado para persistir o ID da Order ("ORD...")
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cupom_id")
     @JsonIgnoreProperties({
-            "pedidos", // 👈 Evita recursão infinita se o Cupom mapear de volta os pedidos que o usaram
-            "criadoEm", "atualizadoEm", "limiteUso", "quantidadeMaxUso", "ativo", // 👈 Remove metadados administrativos do cupom na resposta do pedido
+            "pedidos",
+            "criadoEm", "atualizadoEm", "limiteUso", "quantidadeMaxUso", "ativo",
             "hibernateLazyInitializer", "handler"
     })
     private Cupom cupom;

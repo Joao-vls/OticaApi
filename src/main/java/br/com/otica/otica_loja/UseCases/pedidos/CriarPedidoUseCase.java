@@ -3,19 +3,24 @@ package br.com.otica.otica_loja.UseCases.pedidos;
 import br.com.otica.otica_loja.Entity.Auth.Endereco;
 import br.com.otica.otica_loja.Entity.Carrinho.Carrinho;
 import br.com.otica.otica_loja.Entity.Carrinho.CarrinhoItem;
+import br.com.otica.otica_loja.Entity.Catalogo.Produto;
+import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
 import br.com.otica.otica_loja.Entity.Comercial.Cupom;
-
+import br.com.otica.otica_loja.Entity.Estoque.EstoqueMovimentacao;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Entity.Pedidos.PedidoItem;
 import br.com.otica.otica_loja.Repository.Auth.EnderecoRepository;
 import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoItemRepository;
 import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoRepository;
+import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
-
+import br.com.otica.otica_loja.Repository.Estoque.EstoqueMovimentacaoRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoItemRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
+import br.com.otica.otica_loja.enums.TipoMovimentacao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -43,15 +48,20 @@ public class CriarPedidoUseCase {
     @Autowired
     private CupomRepository cupomRepository;
 
-    /**
-     * Cria um pedido a partir do carrinho do usuário.
-     */
+    @Autowired
+    private ProdutoVarianteRepository produtoVarianteRepository;
+
+    @Autowired
+    private EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
+
+    @Transactional
     public Pedido criar(UUID usuarioId, String codigoCupom, BigDecimal valorFrete, String observacoes) {
         // 1. Buscar carrinho
         Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Carrinho não encontrado."));
 
-        List<CarrinhoItem> itensCarrinho = carrinhoItemRepository.findByCarrinho(carrinho);
+        List<CarrinhoItem> itensCarrinho = carrinho.getItens(); // Mudança sutil: acessando direto pela Entidade
+
         if (itensCarrinho.isEmpty()) {
             throw new IllegalArgumentException("Carrinho está vazio.");
         }
@@ -106,24 +116,71 @@ public class CriarPedidoUseCase {
 
         pedido = pedidoRepository.save(pedido);
 
-        // 7. Criar itens do pedido
+        // 7. Criar itens do pedido e RESERVAR ESTOQUE
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
+            ProdutoVariante variante = itemCarrinho.getVariante();
+            Produto produto = variante.getProduto();
+            Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
+
+
+            // 7.1 Validação de Produto Ativo
+            if (produto != null && !produto.getAtivo()) {
+                throw new IllegalArgumentException(
+                        String.format("O produto '%s' não está mais disponível para venda.", produto.getNome())
+                );
+            }
+
+            if (!variante.getAtivo()) {
+                throw new IllegalArgumentException(
+                        String.format("A variação '%s' do produto '%s' não está mais disponível.",
+                                variante.getNome(), produto != null ? produto.getNome() : "")
+                );
+            }
+
+            // 7.2 Validação rigorosa de estoque
+            if (variante.getStock() < quantidadeSolicitada) {
+                throw new IllegalArgumentException(
+                        String.format("Estoque insuficiente para o produto: %s (SKU: %s). Disponível: %d",
+                                variante.getNome(), variante.getSku(), variante.getStock())
+                );
+            }
+
+            // 7.3 Atualizar Saldo
+            Integer saldoAnterior = variante.getStock();
+            Integer saldoAtual = saldoAnterior - quantidadeSolicitada;
+            variante.setStock(saldoAtual);
+            produtoVarianteRepository.save(variante);
+
+            // 7.4 Registrar movimentação de saída
+            EstoqueMovimentacao movimentacao = new EstoqueMovimentacao();
+            movimentacao.setVariante(variante);
+            movimentacao.setTipo(TipoMovimentacao.SAIDA);
+            movimentacao.setQuantidade(quantidadeSolicitada);
+            movimentacao.setSaldoAnterior(saldoAnterior);
+            movimentacao.setSaldoAtual(saldoAtual);
+            movimentacao.setUsuarioId(usuarioId);
+            movimentacao.setObservacao("Reserva de estoque - Pedido a aguardar pagamento.");
+            movimentacao.setCriadoEm(OffsetDateTime.now());
+            estoqueMovimentacaoRepository.save(movimentacao);
+
+            // 7.5 Criar o item do pedido
             PedidoItem pedidoItem = new PedidoItem();
             pedidoItem.setPedido(pedido);
-            pedidoItem.setProduto(itemCarrinho.getVariante().getProduto());
-            pedidoItem.setVariante(itemCarrinho.getVariante());
-            pedidoItem.setNomeProduto(itemCarrinho.getVariante().getNome());
-            pedidoItem.setSku(itemCarrinho.getVariante().getSku());
-            pedidoItem.setQuantidade(itemCarrinho.getQuantidade());
+            pedidoItem.setProduto(produto);
+            pedidoItem.setVariante(variante);
+            pedidoItem.setNomeProduto(variante.getNome());
+            pedidoItem.setSku(variante.getSku());
+            pedidoItem.setQuantidade(quantidadeSolicitada);
             pedidoItem.setPrecoUnitario(itemCarrinho.getPrecoUnitario());
             pedidoItem.setSubtotal(itemCarrinho.getPrecoUnitario()
-                    .multiply(BigDecimal.valueOf(itemCarrinho.getQuantidade())));
+                    .multiply(BigDecimal.valueOf(quantidadeSolicitada)));
 
             pedidoItemRepository.save(pedidoItem);
         }
 
-        // 8. Remover carrinho (opcional, se não quiser manter histórico)
-        carrinhoRepository.deleteByUsuarioId(usuarioId);
+        // 8. Remover itens do carrinho (A SOLUÇÃO AQUI 👇)
+        carrinho.getItens().clear();
+        carrinhoRepository.save(carrinho);
 
         return pedido;
     }

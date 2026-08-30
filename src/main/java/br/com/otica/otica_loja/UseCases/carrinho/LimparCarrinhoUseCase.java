@@ -21,11 +21,10 @@ public class LimparCarrinhoUseCase {
      * Remove todos os itens do carrinho do usuário.
      */
     public void limpar(UUID usuarioId) {
-        // 1. Buscar carrinho do usuário
         Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Carrinho não encontrado para este usuário."));
 
-        // 2. Remover todos os itens do carrinho
-        carrinhoItemRepository.deleteAll(carrinhoItemRepository.findByCarrinho(carrinho));
+        carrinho.getItens().clear();
+        carrinhoRepository.save(carrinho);
     }
 }

@@ -2,6 +2,7 @@ package br.com.otica.otica_loja.Entity.Avaliacao;
 
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,6 +21,7 @@ public class Favorito {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("usuarioId")
+    @JsonIgnore
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario; // ✅ relacionamento direto com Usuario
 

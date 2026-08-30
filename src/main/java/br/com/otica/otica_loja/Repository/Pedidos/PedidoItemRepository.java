@@ -4,6 +4,7 @@ import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Entity.Pedidos.PedidoItem;
+import br.com.otica.otica_loja.enums.StatusPedido;
 import org.springframework.data.domain.Pageable; // ✅ IMPORT CORRETO
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,13 +21,37 @@ import java.util.UUID;
 public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
 
     // --- Projeção e Query Corrigida para o Grid do Supabase (PostgreSQL) ---
+    @Query("""
+        SELECT COUNT(i) > 0 
+        FROM PedidoItem i
+        JOIN i.pedido p
+        WHERE i.produto.id = :produtoId
+          AND p.usuarioId = :usuarioId
+          AND p.status IN :statusValidos
+    """)
+    boolean existsByProdutoIdAndUsuarioIdEStatusIn(
+            @Param("produtoId") UUID produtoId,
+            @Param("usuarioId") UUID usuarioId,
+            @Param("statusValidos") List<StatusPedido> statusValidos
+    );
 
     interface AtividadeVendaProjection {
         LocalDate getData();
         Long getQuantidade();
         String getNomeProduto();
     }
-
+    @Query("""
+    SELECT COUNT(i) > 0 
+    FROM PedidoItem i
+    JOIN i.pedido p
+    WHERE (i.produto.id = :produtoId OR i.variante.produto.id = :produtoId)
+      AND p.usuarioId = :usuarioId
+      AND p.status = br.com.otica.otica_loja.enums.StatusPedido.ENTREGUE
+""")
+    boolean existsProdutoEntregueParaUsuario(
+            @Param("produtoId") UUID produtoId,
+            @Param("usuarioId") UUID usuarioId
+    );
     @Query(value = """
         SELECT 
             CAST(pag.criado_em AS DATE) as data,

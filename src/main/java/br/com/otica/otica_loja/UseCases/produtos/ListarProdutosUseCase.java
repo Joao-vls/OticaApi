@@ -2,17 +2,17 @@ package br.com.otica.otica_loja.UseCases.produtos;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ListarProdutosUseCase {
 
-    @Autowired
-    private ProdutoRepository produtoRepository;
+    private final ProdutoRepository produtoRepository;
 
     /**
      * Lista todos os produtos.
@@ -57,10 +57,10 @@ public class ListarProdutosUseCase {
     }
 
     /**
-     * Lista produtos por categoria.
+     * Lista produtos por categoria (N:N).
      */
     public List<Produto> listarPorCategoria(UUID categoriaId) {
-        return produtoRepository.findByCategoriaId(categoriaId);
+        return produtoRepository.findByCategorias_Id(categoriaId);
     }
 
     /**

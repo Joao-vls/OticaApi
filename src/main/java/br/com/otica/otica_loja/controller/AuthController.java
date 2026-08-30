@@ -90,7 +90,7 @@ public class AuthController {
         if (isAdminOuGerente) {
             logAcessoService.registrar(httpRequest, usuario.getId());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Acesso negado: Administradores e gerentes devem acessar pelo painel administrativo."));
+                    .body(Map.of("message", "Erro de autenticação."));
         }
 
         try {
@@ -103,17 +103,14 @@ public class AuthController {
 
             logAcessoService.registrar(httpRequest, usuario.getId());
 
-            long segundosValidade = Duration.between(OffsetDateTime.now(), sessao.getExpiraEm()).getSeconds();
-            if (segundosValidade <= 0) {
-                segundosValidade = 3600;
-            }
+
 
             // Cookie exclusivo do Cliente: client_token
             ResponseCookie authCookie = ResponseCookie.from("client_token", sessao.getToken())
                     .httpOnly(true)
                     .secure(false) // Mudar para true em produção com HTTPS
                     .path("/")
-                    .maxAge(segundosValidade)
+                    .maxAge(Duration.ofHours(1))
                     .sameSite("Lax")
                     .build();
 
