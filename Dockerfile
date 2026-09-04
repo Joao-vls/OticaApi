@@ -13,6 +13,6 @@ WORKDIR /app
 
 EXPOSE 8080
 
-COPY --from=build /app/build/libs/deploy_render-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/build/libs/otica-loja-0.0.1-SNAPSHOT.jar app.jar
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
