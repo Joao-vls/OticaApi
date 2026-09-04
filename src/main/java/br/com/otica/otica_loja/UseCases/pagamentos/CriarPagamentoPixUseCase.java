@@ -5,19 +5,22 @@ import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.dto.PixPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
 
+// 1. IMPORTS CORRETOS DO JACKSON DO SPRING BOOT
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Locale;
 
 @Service
 public class CriarPagamentoPixUseCase {
@@ -32,7 +35,6 @@ public class CriarPagamentoPixUseCase {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
 
-        // 🎯 1. Validação de Segurança: Garante que o usuarioId pertence ao dono do pedido
         if (usuarioId != null && !pedido.getUsuarioId().equals(usuarioId)) {
             throw new IllegalArgumentException("O usuário informado não pertence a este pedido.");
         }
@@ -45,12 +47,14 @@ public class CriarPagamentoPixUseCase {
             RestTemplate restTemplate = new RestTemplate();
             ObjectMapper mapper = new ObjectMapper();
 
-            // 2. Montando o Body
+            // 2. Formatar o valor estritamente para 2 casas decimais (ex: 50.00)
+            String totalAmountStr = String.format(Locale.US, "%.2f", pedido.getTotal());
+
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
             body.put("external_reference", pedido.getId().toString());
             body.put("processing_mode", "automatic");
-            body.put("total_amount", String.valueOf(pedido.getTotal()));
+            body.put("total_amount", totalAmountStr);
             body.put("description", "Pedido Ótica - " + pedido.getId());
 
             Map<String, Object> payer = new HashMap<>();
@@ -62,16 +66,15 @@ public class CriarPagamentoPixUseCase {
             paymentMethod.put("type", "bank_transfer");
 
             Map<String, Object> paymentItem = new HashMap<>();
-            paymentItem.put("amount", String.valueOf(pedido.getTotal()));
+            paymentItem.put("amount", totalAmountStr);
             paymentItem.put("payment_method", paymentMethod);
-            paymentItem.put("expiration_time", "PT24H");
+            // "expiration_time" removido pois o MP já assume 24h por padrão e pode conflitar.
 
             Map<String, Object> transactions = new HashMap<>();
             transactions.put("payments", List.of(paymentItem));
 
             body.put("transactions", transactions);
 
-            // 3. Configurando Headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
@@ -79,7 +82,6 @@ public class CriarPagamentoPixUseCase {
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
-            // 4. Executando a chamada
             ResponseEntity<String> response = restTemplate.postForEntity(
                     "https://api.mercadopago.com/v1/orders",
                     entity,
@@ -88,17 +90,16 @@ public class CriarPagamentoPixUseCase {
 
             JsonNode root = mapper.readTree(response.getBody());
 
-            // 🎯 Usando asText() no lugar de asString()
-            String orderIdMercadoPago = root.path("id").asString(null);
+            // 3. USO CORRETO DO asText() COM O JACKSON DO SPRING BOOT
+            String orderIdMercadoPago = root.path("id").asText(null);
 
-            // 5. Extraindo os dados do PIX
             JsonNode firstPayment = root.path("transactions").path("payments").get(0);
             JsonNode methodResponse = firstPayment.path("payment_method");
 
-            String chavePixCopiaECola = methodResponse.path("qr_code").asString("");
-            String qrCodeBase64 = methodResponse.path("qr_code_base64").asString("");
+            // Extraindo as chaves corretamente
+            String chavePixCopiaECola = methodResponse.path("qr_code").asText("");
+            String qrCodeBase64 = methodResponse.path("qr_code_base64").asText("");
 
-            // 6. Atualiza e salva o Pedido
             pedido.setOrderIdMercadoPago(orderIdMercadoPago);
             pedido.setStatus(StatusPedido.PROCESSANDO);
             pedido.setAtualizadoEm(OffsetDateTime.now());
@@ -109,11 +110,12 @@ public class CriarPagamentoPixUseCase {
                     pedido.getTotal(),
                     chavePixCopiaECola,
                     qrCodeBase64,
-                    "Pix gerado com sucesso (Orders API)"
+                    "Pix gerado com sucesso"
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao gerar Pix no Mercado Pago (Orders API): " + e.getMessage(), e);
+            e.printStackTrace(); // Útil para ver o erro no log do Spring
+            throw new RuntimeException("Erro ao gerar Pix no Mercado Pago: " + e.getMessage(), e);
         }
     }
 }

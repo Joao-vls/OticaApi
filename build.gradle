@@ -25,6 +25,7 @@ dependencies {
 	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
 	implementation 'org.hibernate.validator:hibernate-validator:8.0.4.Final'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
 	compileOnly 'org.projectlombok:lombok:latest.release'
 	annotationProcessor 'org.projectlombok:lombok:latest.release'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
