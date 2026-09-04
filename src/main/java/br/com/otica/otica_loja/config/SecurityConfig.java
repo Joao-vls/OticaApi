@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/produtos/**", "/categorias/**", "/marcas/**", "/home/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/avaliacoes/produto/**").permitAll()
-
+                        .requestMatchers(HttpMethod.POST, "/api/pagamentos/webhook").permitAll()
                         .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
                         // Áreas administrativas (Nota: hasAnyRole remove o prefixo ROLE_ internamente)
                         .requestMatchers(HttpMethod.POST, "/admin/**").hasRole("ADMIN")
