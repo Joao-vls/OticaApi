@@ -16,7 +16,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/vitrines")
-@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true")
 public class AdminVitrineController {
 
     private final CriarVitrineUseCase criarVitrineUseCase;

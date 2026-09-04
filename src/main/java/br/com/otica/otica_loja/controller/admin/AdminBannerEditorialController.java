@@ -20,7 +20,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/admin/banners-editoriais")
-@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true")
 @RequiredArgsConstructor
 public class AdminBannerEditorialController {
 
@@ -28,7 +27,6 @@ public class AdminBannerEditorialController {
     private final AtualizarBannerEditorialUseCase atualizarBannerEditorialUseCase;
     private final BannerEditorialRepository bannerEditorialRepository;
 
-    // Gerente e Admin podem listar/visualizar
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<List<BannerEditorial>> listarTodos() {
@@ -43,12 +41,12 @@ public class AdminBannerEditorialController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- CRIAR NOVO BANNER (Apenas ADMIN) ---
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BannerEditorial> criar(
             @RequestParam String identificador,
             @RequestParam String layoutTipo,
+            @RequestParam(required = false, defaultValue = "TIPO_1") String estiloVisual,
             @RequestParam(required = false, defaultValue = "true") Boolean ativo,
             @RequestParam(required = false) String textoMarca,
             @RequestPart(required = false) MultipartFile logoFile,
@@ -78,7 +76,7 @@ public class AdminBannerEditorialController {
         String layoutSanitizado = validarELimparLayoutTipo(layoutTipo);
 
         BannerEditorial banner = criarBannerEditorialUseCase.executar(
-                identificador, layoutSanitizado, textoMarca,
+                identificador, layoutSanitizado, estiloVisual, textoMarca,
                 limparArquivoVazio(logoFile), logoUrl,
                 limparArquivoVazio(sec1MediaFile), sec1MediaUrl, sec1Titulo, sec1TituloDestaque,
                 sec1Descricao, sec1ProdutoNome, sec1Preco, sec1Desconto, sec1LinkUrl,
@@ -93,12 +91,12 @@ public class AdminBannerEditorialController {
         return ResponseEntity.status(HttpStatus.CREATED).body(banner);
     }
 
-    // --- ATUALIZAR BANNER EXISTENTE (Apenas ADMIN) ---
     @PutMapping(value = "/{identificador}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BannerEditorial> atualizar(
             @PathVariable String identificador,
             @RequestParam String layoutTipo,
+            @RequestParam(required = false, defaultValue = "TIPO_1") String estiloVisual,
             @RequestParam(required = false, defaultValue = "true") Boolean ativo,
             @RequestParam(required = false) String textoMarca,
             @RequestPart(required = false) MultipartFile logoFile,
@@ -128,7 +126,7 @@ public class AdminBannerEditorialController {
         String layoutSanitizado = validarELimparLayoutTipo(layoutTipo);
 
         BannerEditorial banner = atualizarBannerEditorialUseCase.executar(
-                identificador, layoutSanitizado, textoMarca,
+                identificador, layoutSanitizado, estiloVisual, textoMarca,
                 limparArquivoVazio(logoFile), logoUrl,
                 limparArquivoVazio(sec1MediaFile), sec1MediaUrl, sec1Titulo, sec1TituloDestaque,
                 sec1Descricao, sec1ProdutoNome, sec1Preco, sec1Desconto, sec1LinkUrl,
@@ -143,7 +141,6 @@ public class AdminBannerEditorialController {
         return ResponseEntity.ok(banner);
     }
 
-    // --- ALTERAR APENAS STATUS (Apenas ADMIN) ---
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BannerEditorial> alternarStatus(
@@ -159,7 +156,6 @@ public class AdminBannerEditorialController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- DELETAR BANNER (Apenas ADMIN) ---
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deletarBannerEditorial(@PathVariable UUID id) {

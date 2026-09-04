@@ -5,6 +5,7 @@ import br.com.otica.otica_loja.Entity.Carrinho.Carrinho;
 import br.com.otica.otica_loja.Entity.Carrinho.CarrinhoItem;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
+import br.com.otica.otica_loja.Entity.Catalogo.ProdutoMidia;
 import br.com.otica.otica_loja.Entity.Comercial.Cupom;
 import br.com.otica.otica_loja.Entity.Estoque.EstoqueMovimentacao;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
@@ -17,6 +18,7 @@ import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
 import br.com.otica.otica_loja.Repository.Estoque.EstoqueMovimentacaoRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoItemRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
+import br.com.otica.otica_loja.enums.TipoMidia; // 👈 Importante para filtrar imagens
 import br.com.otica.otica_loja.enums.TipoMovimentacao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,7 +63,7 @@ public class CriarPedidoUseCase {
         Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Carrinho não encontrado."));
 
-        List<CarrinhoItem> itensCarrinho = carrinho.getItens(); // Mudança sutil: acessando direto pela Entidade
+        List<CarrinhoItem> itensCarrinho = carrinho.getItens();
 
         if (itensCarrinho.isEmpty()) {
             throw new IllegalArgumentException("Carrinho está vazio.");
@@ -122,7 +125,6 @@ public class CriarPedidoUseCase {
             Produto produto = variante.getProduto();
             Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
 
-
             // 7.1 Validação de Produto Ativo
             if (produto != null && !produto.getAtivo()) {
                 throw new IllegalArgumentException(
@@ -163,6 +165,29 @@ public class CriarPedidoUseCase {
             movimentacao.setCriadoEm(OffsetDateTime.now());
             estoqueMovimentacaoRepository.save(movimentacao);
 
+            // 👇👇👇 LÓGICA REFINADA: BUSCA APENAS MÍDIA DO TIPO IMAGEM 👇👇👇
+            String urlImagemPrincipal = null;
+
+            // 1. Tenta buscar a primeira imagem válida na variante
+            if (variante.getMidias() != null && !variante.getMidias().isEmpty()) {
+                urlImagemPrincipal = variante.getMidias().stream()
+                        .filter(m -> m.getTipo() == TipoMidia.IMAGE) // Garante que é imagem (ajuste o nome do Enum se necessário, ex: IMAGEM / FOTO)
+                        .sorted(Comparator.comparing(ProdutoMidia::getOrdem)) // Respeita a ordenação
+                        .map(ProdutoMidia::getPath)
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            // 2. Se não achou imagem na variante, faz o fallback buscando no produto principal
+            if (urlImagemPrincipal == null && produto != null && produto.getMidias() != null && !produto.getMidias().isEmpty()) {
+                urlImagemPrincipal = produto.getMidias().stream()
+                        .filter(m -> m.getTipo() == TipoMidia.IMAGE)
+                        .sorted(Comparator.comparing(ProdutoMidia::getOrdem))
+                        .map(ProdutoMidia::getPath)
+                        .findFirst()
+                        .orElse(null);
+            }
+
             // 7.5 Criar o item do pedido
             PedidoItem pedidoItem = new PedidoItem();
             pedidoItem.setPedido(pedido);
@@ -175,10 +200,13 @@ public class CriarPedidoUseCase {
             pedidoItem.setSubtotal(itemCarrinho.getPrecoUnitario()
                     .multiply(BigDecimal.valueOf(quantidadeSolicitada)));
 
+            // Grava o path da imagem filtrada no banco
+            pedidoItem.setImagemUrl(urlImagemPrincipal);
+
             pedidoItemRepository.save(pedidoItem);
         }
 
-        // 8. Remover itens do carrinho (A SOLUÇÃO AQUI 👇)
+        // 8. Remover itens do carrinho
         carrinho.getItens().clear();
         carrinhoRepository.save(carrinho);
 

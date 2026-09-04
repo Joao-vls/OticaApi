@@ -66,6 +66,7 @@ public class HomeController {
                     PromoMainResponseDTO response = new PromoMainResponseDTO(
                             banner.getTextoMarca() != null ? banner.getTextoMarca() : "LERNERRA",
                             banner.getLogoPath() != null ? banner.getLogoPath() : "assets/logo.png",
+                            banner.getEstiloVisual() != null ? banner.getEstiloVisual() : "TIPO_1", // <-- REPASSANDO O VALOR DO BANCO
                             topSection,
                             bottomSection
                     );

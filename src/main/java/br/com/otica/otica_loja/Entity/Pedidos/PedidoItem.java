@@ -46,6 +46,9 @@ public class PedidoItem {
     @Column(nullable = false)
     private Integer quantidade;
 
+    @Column(name = "imagem_url", columnDefinition = "TEXT")
+    private String imagemUrl;
+
     @Column(name = "preco_unitario", nullable = false, precision = 12, scale = 2)
     private BigDecimal precoUnitario;
 

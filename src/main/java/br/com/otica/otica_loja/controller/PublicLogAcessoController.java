@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/public/log-acesso")
-@CrossOrigin(origins = {"http://localhost:4200", "http://192.168.1.100:4200"}, allowCredentials = "true")
 public class PublicLogAcessoController {
 
     @Autowired

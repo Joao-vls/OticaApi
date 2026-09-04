@@ -22,6 +22,7 @@ public class CriarBannerEditorialUseCase {
     public BannerEditorial executar(
             String identificador,
             String layoutTipo,
+            String estiloVisual,
             String textoMarca,
             MultipartFile logoFile, String logoUrl,
             MultipartFile sec1MediaFile, String sec1MediaUrl, String sec1Titulo, String sec1TituloDestaque,
@@ -37,16 +38,15 @@ public class CriarBannerEditorialUseCase {
         BannerEditorial banner = new BannerEditorial();
         banner.setIdentificador(identificador);
         banner.setLayoutTipo(layoutTipo);
+        banner.setEstiloVisual(estiloVisual);
         banner.setTextoMarca(textoMarca);
         banner.setAtivo(true);
         banner.setAtualizadoEm(OffsetDateTime.now());
 
-        // Processa mídias
         banner.setLogoPath(resolverMidia(logoFile, logoUrl, null));
         banner.setSec1MediaPath(resolverMidia(sec1MediaFile, sec1MediaUrl, null));
         banner.setSec2MediaPath(resolverMidia(sec2MediaFile, sec2MediaUrl, null));
 
-        // Seção 1
         banner.setSec1Titulo(sec1Titulo);
         banner.setSec1TituloDestaque(sec1TituloDestaque);
         banner.setSec1Descricao(sec1Descricao);
@@ -55,7 +55,6 @@ public class CriarBannerEditorialUseCase {
         banner.setSec1Desconto(sec1Desconto);
         banner.setSec1LinkUrl(sec1LinkUrl);
 
-        // Seção 2
         banner.setSec2Titulo(sec2Titulo);
         banner.setSec2TituloDestaque(sec2TituloDestaque);
         banner.setSec2Descricao(sec2Descricao);

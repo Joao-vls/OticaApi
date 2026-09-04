@@ -21,7 +21,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/admin/dashboard")
-@CrossOrigin(origins = {"http://localhost:4200", "http://192.168.1.100:4200"}, allowCredentials = "true")
 public class AdminDashboardController {
 
     @Autowired

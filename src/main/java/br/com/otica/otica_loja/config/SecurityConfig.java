@@ -30,7 +30,7 @@ public class SecurityConfig {
 
     private final TokenAuthenticationFilter tokenAuthenticationFilter;
 
-    @Value("${app.cors.allowed-origins:http://localhost:4200,http://192.168.1.100:4200}")
+    @Value("${cors.allowed-origins}")
     private List<String> allowedOrigins;
 
     @Bean
@@ -49,12 +49,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/produtos/**", "/categorias/**", "/marcas/**", "/home/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/avaliacoes/produto/**").permitAll()
 
+                        .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
                         // Áreas administrativas (Nota: hasAnyRole remove o prefixo ROLE_ internamente)
-                        .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE")
                         .requestMatchers(HttpMethod.POST, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/admin/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE") // Se o atendente puder enviar mensagens
+                        .requestMatchers(HttpMethod.PUT, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE")
 
                         // Área restrita do cliente
                         .requestMatchers("/cliente/**", "/api/cliente/**").hasAnyRole("CLIENTE","ADMIN")

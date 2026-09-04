@@ -1,5 +1,6 @@
 package br.com.otica.otica_loja.Entity.Atendimento;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // Import necessário
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,11 +14,12 @@ import java.util.UUID;
 @Table(name = "ticket_mensagens", schema = "loja")
 public class TicketMensagem {
 
-    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
+    // Bloqueia a serialização para evitar erro de Lazy Loading ou Loop
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", nullable = false)
     private Ticket ticket;
@@ -33,5 +35,4 @@ public class TicketMensagem {
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
-
 }

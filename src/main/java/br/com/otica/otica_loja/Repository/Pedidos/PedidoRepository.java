@@ -2,6 +2,8 @@ package br.com.otica.otica_loja.Repository.Pedidos;
 
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.enums.StatusPedido;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -17,6 +19,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
     // Buscar pedido pelo número
     Optional<Pedido> findByNumero(Long numero);
 
+    Page<Pedido> findByStatusIn(List<StatusPedido> status, Pageable pageable);
     // Buscar pedidos de um usuário
     List<Pedido> findByUsuarioId(UUID usuarioId);
 

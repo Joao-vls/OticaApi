@@ -38,7 +38,7 @@ public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
     interface AtividadeVendaProjection {
         LocalDate getData();
         Long getQuantidade();
-        String getNomeProduto();
+        String getNomeProduto(); // Retornará uma string separada por vírgulas
     }
     @Query("""
     SELECT COUNT(i) > 0 
@@ -52,17 +52,18 @@ public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
             @Param("produtoId") UUID produtoId,
             @Param("usuarioId") UUID usuarioId
     );
+
+
     @Query(value = """
         SELECT 
-            CAST(pag.criado_em AS DATE) as data,
+            CAST(p.criado_em AS DATE) as data,
             SUM(i.quantidade) as quantidade,
-            MAX(i.nome_produto) as nomeProduto
-        FROM loja.pedido_itens i
-        JOIN loja.pedidos p ON i.pedido_id = p.id
-        JOIN loja.pagamentos pag ON pag.pedido_id = p.id
-        WHERE EXTRACT(YEAR FROM pag.criado_em) = :ano
-          AND pag.status = 'APROVADO'
-        GROUP BY CAST(pag.criado_em AS DATE)
+            STRING_AGG(DISTINCT i.nome_produto, ', ') as nomeProduto
+        FROM loja.pedidos p
+        JOIN loja.pedido_itens i ON i.pedido_id = p.id
+        WHERE EXTRACT(YEAR FROM p.criado_em) = :ano
+          AND p.status IN ('PAGO', 'ENTREGUE')
+        GROUP BY CAST(p.criado_em AS DATE)
         ORDER BY data
         """, nativeQuery = true)
     List<AtividadeVendaProjection> obterAtividadeVendasPorAno(@Param("ano") int ano);

@@ -6,7 +6,9 @@ import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import br.com.otica.otica_loja.UseCases.avaliacoes.AprovarAvaliacaoUseCase;
 import br.com.otica.otica_loja.UseCases.pedidos.ListarPedidosUsuarioUseCase;
+import br.com.otica.otica_loja.UseCases.usuario.ContarClientesAtivosUseCase;
 import br.com.otica.otica_loja.UseCases.usuario.GerenciarUsuarioAdminUseCase;
+import br.com.otica.otica_loja.UseCases.usuario.ListarClientesAtivosUseCase;
 import br.com.otica.otica_loja.UseCases.usuario.ListarUsuariosAdminResumoUseCase;
 import br.com.otica.otica_loja.dto.UsuarioAdminResumoDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +25,16 @@ import java.util.UUID;
 public class AdminUsuarioController {
 
     @Autowired
+    private ListarClientesAtivosUseCase listarClientesAtivosUseCase;
+
+    @Autowired
     private GerenciarUsuarioAdminUseCase gerenciarUsuarioAdminUseCase;
 
     @Autowired
-    private UsuarioRepository usuarioRepository;
-    @Autowired
     private ListarPedidosUsuarioUseCase listarPedidosUsuarioUseCase;
+
+    @Autowired
+    private ContarClientesAtivosUseCase contarClientesAtivosUseCase;
 
     @Autowired
     private AprovarAvaliacaoUseCase aprovarAvaliacaoUseCase;
@@ -81,6 +87,24 @@ public class AdminUsuarioController {
     public ResponseEntity<List<UsuarioAdminResumoDTO>> listarUsuarios() {
         List<UsuarioAdminResumoDTO> resumo = listarUsuariosAdminResumoUseCase.executar();
         return ResponseEntity.ok(resumo);
+    }
+
+
+
+    // ... métodos existentes ...
+
+    // NOVO ENDPOINT DE CONTAGEM
+    @GetMapping("/clientes/ativos/count")
+    public ResponseEntity<Long> contarClientesAtivos() {
+        Long quantidade = contarClientesAtivosUseCase.executar();
+        return ResponseEntity.ok(quantidade);
+    }
+
+    // 7. Listar apenas clientes ativos
+    @GetMapping("/clientes/ativos")
+    public ResponseEntity<List<Usuario>> listarClientesAtivos() {
+        List<Usuario> clientesAtivos = listarClientesAtivosUseCase.executar();
+        return ResponseEntity.ok(clientesAtivos);
     }
 
 }

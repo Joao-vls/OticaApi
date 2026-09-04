@@ -1,5 +1,6 @@
 package br.com.otica.otica_loja.Entity.Atendimento;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // Import necessário
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -13,16 +14,17 @@ import lombok.Setter;
 @Table(name = "chat_mensagens", schema = "loja")
 public class ChatMensagem {
 
-    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
+    // Bloqueia a serialização deste campo para evitar o loop infinito
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversa_id", nullable = false)
     private ChatConversa conversa;
 
-    @Enumerated(EnumType.STRING) // importante para salvar como texto no banco
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private RemetenteTipo remetente;
 
@@ -37,5 +39,4 @@ public class ChatMensagem {
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
-
 }

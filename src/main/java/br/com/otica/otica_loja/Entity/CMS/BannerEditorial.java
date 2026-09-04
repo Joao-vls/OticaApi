@@ -24,6 +24,8 @@ public class BannerEditorial {
     @Column(name = "layout_tipo", nullable = false, length = 50)
     private String layoutTipo; // "VERTICAL" (Caso 1) ou "HORIZONTAL" (Caso 2)
 
+    @Column(name = "estilo_visual", length = 50)
+    private String estiloVisual;
     @Column(name = "texto_marca", length = 150)
     private String textoMarca; // Nome da Marca principal/Logo texto
 

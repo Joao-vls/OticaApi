@@ -20,9 +20,19 @@ public interface ChatConversaRepository extends JpaRepository<ChatConversa, UUID
     // Buscar conversas por canal (site, app, whatsapp, etc.)
     List<ChatConversa> findByCanal(String canal);
 
-    // Buscar conversas por status (aberto, em_atendimento, encerrado)
+    // Buscar conversas por status único (aberto, em_atendimento, encerrado)
     List<ChatConversa> findByStatus(String status);
 
     // Buscar conversa ativa de um usuário
     Optional<ChatConversa> findByUsuarioIdAndStatus(UUID usuarioId, String status);
+
+    // =========================================================================
+    // NOVOS MÉTODOS PARA O PAINEL ADMIN (Com ordenação dos mais recentes no topo)
+    // =========================================================================
+
+    // Buscar conversas por múltiplos status (ex: "aberto" OU "em_atendimento")
+    List<ChatConversa> findByStatusInOrderByAtualizadoEmDesc(List<String> status);
+
+    // Retorna todas as conversas ordenadas (caso o filtro de status venha vazio)
+    List<ChatConversa> findAllByOrderByAtualizadoEmDesc();
 }
