@@ -21,6 +21,7 @@ public class PagamentoController {
     private final CriarPagamentoCartaoUseCase criarPagamentoCartaoUseCase;
     private final CriarPagamentoBoletoUseCase criarPagamentoBoletoUseCase;
     private final CancelarPagamentoUseCase cancelarPagamentoUseCase;
+    private final VerificarStatusPagamentoUseCase verificarStatusPagamentoUseCase;
 
     @PostMapping("/pix/{pedidoId}")
     @PreAuthorize("hasAnyRole('CLIENTE')")
@@ -82,6 +83,17 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
+
+    @GetMapping("/status/{pedidoId}")
+    @PreAuthorize("hasAnyRole('CLIENTE')")
+    public ResponseEntity<Map<String, String>> checarStatus(
+            @AuthenticationPrincipal Usuario usuarioLogado,
+            @PathVariable UUID pedidoId) {
+
+        String status = verificarStatusPagamentoUseCase.verificarStatus(pedidoId, usuarioLogado.getId());
+
+        return ResponseEntity.ok(Map.of("status", status));
+    }
     @PostMapping("/cancelar")
     @PreAuthorize("hasRole('ADMIN')") // Apenas administradores podem cancelar pagamentos à força
     public ResponseEntity<Void> cancelarPagamento(
