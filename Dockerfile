@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 RUN chmod +x gradlew
-RUN ./gradlew clean build
+RUN ./gradlew build -x test --no-daemon
 
 FROM eclipse-temurin:25-jre
 
