@@ -82,10 +82,10 @@ public class AdminLoginController {
 
             ResponseCookie authCookie = ResponseCookie.from("admin_token", sessao.getToken())
                     .httpOnly(true)
-                    .secure(false) // Mudar para true em produção com HTTPS
+                    .secure(true) // OBRIGATÓRIO SER TRUE
                     .path("/")
                     .maxAge(Duration.ofHours(1))
-                    .sameSite("Lax")
+                    .sameSite("None") // OBRIGATÓRIO SER "None"
                     .build();
 
             return ResponseEntity.ok()
@@ -149,10 +149,10 @@ public class AdminLoginController {
 
         ResponseCookie cleanCookie = ResponseCookie.from("admin_token", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true) // Mudar para true
                 .path("/")
                 .maxAge(0)
-                .sameSite("Lax")
+                .sameSite("None") // Mudar para "None"
                 .build();
 
         return ResponseEntity.ok()
