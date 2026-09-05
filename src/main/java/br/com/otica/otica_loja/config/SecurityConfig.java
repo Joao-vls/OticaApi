@@ -61,7 +61,7 @@ public class SecurityConfig {
                         // Área restrita do cliente
                         .requestMatchers("/cliente/**", "/api/cliente/**").hasAnyRole("CLIENTE","ADMIN")
                         .requestMatchers("/api/avaliacoes/pode-avaliar/**").hasAnyRole("CLIENTE", "ADMIN")
-                        // Qualquer outra rota exige autenticação
+                        .requestMatchers("/api/pagamentos/**").hasAnyRole("CLIENTE", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(tokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
