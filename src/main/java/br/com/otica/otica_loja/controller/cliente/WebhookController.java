@@ -40,9 +40,9 @@ public class WebhookController {
         String eventType = topic != null ? topic : type;
         String resourceId = dataId != null ? dataId : id;
 
-        // 🔒 BLOQUEIO DE SEGURANÇA: Rejeita webhooks falsificados
+        // 🔒 VALIDAÇÃO DE SEGURANÇA ROBUSTA (Padrão Oficial Mercado Pago)
         if (!isAssinaturaValida(xSignature, xRequestId, resourceId)) {
-            System.err.println("Tentativa de Webhook inválida/falsa detectada. Acesso negado.");
+            System.err.println("Tentativa de Webhook inválida/falsa detectada ou chave secreta divergente. Acesso negado.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -108,46 +108,65 @@ public class WebhookController {
             }
         }
 
-        // Responde 200 OK para o Mercado Pago confirmar o recebimento
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
     /**
-     * Valida a autenticidade do webhook gerando um hash HMAC-SHA256
-     * e comparando com a assinatura enviada pelo Mercado Pago.
+     * Validação oficial de assinatura do Mercado Pago baseada na documentação técnica.
      */
     private boolean isAssinaturaValida(String xSignature, String xRequestId, String dataId) {
-        if (xSignature == null || xRequestId == null || dataId == null || webhookSecret == null || webhookSecret.isBlank()) {
+        // Se a chave secreta não estiver configurada no ambiente, rejeita por segurança
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            System.err.println("Aviso: 'mercadopago.webhook-secret' não está configurada nas propriedades/variáveis.");
+            return false;
+        }
+
+        if (xSignature == null || xRequestId == null || dataId == null) {
             return false;
         }
 
         try {
-            String ts = "";
-            String hashEnviado = "";
+            String ts = null;
+            String hashEnviado = null;
+
+            // Extrai os campos 'ts' e 'v1' do cabeçalho x-signature
             String[] parts = xSignature.split(",");
             for (String part : parts) {
-                if (part.trim().startsWith("ts=")) ts = part.trim().substring(3);
-                if (part.trim().startsWith("v1=")) hashEnviado = part.trim().substring(3);
+                String[] keyValue = part.trim().split("=");
+                if (keyValue.length == 2) {
+                    if (keyValue[0].equals("ts")) {
+                        ts = keyValue[1];
+                    } else if (keyValue[0].equals("v1")) {
+                        hashEnviado = keyValue[1];
+                    }
+                }
             }
 
-            if (ts.isEmpty() || hashEnviado.isEmpty()) return false;
+            if (ts == null || hashEnviado == null) {
+                return false;
+            }
 
+            // Constrói a string de manifesto oficial exigida pelo Mercado Pago
             String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
 
+            // Executa o cálculo HMAC-SHA256
             Mac sha256Hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256Hmac.init(secretKey);
 
-            byte[] bytes = sha256Hmac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hashCalculado = new StringBuilder();
-            for (byte b : bytes) {
-                hashCalculado.append(String.format("%02x", b));
+            byte[] macData = sha256Hmac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : macData) {
+                sb.append(String.format("%02x", b));
             }
 
-            return hashCalculado.toString().equals(hashEnviado);
+            String hashCalculado = sb.toString();
+
+            // Compara de forma segura o hash calculado com o hash enviado pelo MP
+            return hashCalculado.equals(hashEnviado);
 
         } catch (Exception e) {
-            System.err.println("Erro ao validar assinatura do webhook: " + e.getMessage());
+            System.err.println("Erro ao processar o cálculo de segurança do webhook: " + e.getMessage());
             return false;
         }
     }
