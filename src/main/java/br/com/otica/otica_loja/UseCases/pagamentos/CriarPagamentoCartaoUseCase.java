@@ -1,11 +1,9 @@
 package br.com.otica.otica_loja.UseCases.pagamentos;
 
-import br.com.otica.otica_loja.Entity.Auth.Endereco;
+// ... mantenha os imports que já existiam e adicione o CarrinhoRepository:
+import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoRepository;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
-import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
-import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
-import br.com.otica.otica_loja.UseCases.usuario.ListarEnderecosUseCase;
 import br.com.otica.otica_loja.dto.CartaoPagamentoRequest;
 import br.com.otica.otica_loja.dto.CartaoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
@@ -19,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -33,16 +30,12 @@ public class CriarPagamentoCartaoUseCase {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @Autowired
-    private ListarEnderecosUseCase listarEnderecosUseCase;
+    private CarrinhoRepository carrinhoRepository; // 👈 Novo
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
 
     public CartaoPagamentoResponse criarPagamento(CartaoPagamentoRequest request, UUID usuarioId) {
-        // 1. Valida se o pedido existe (caso venha do front já criado) ou busca o usuário/endereço necessário
         Pedido pedido = pedidoRepository.findById(request.pedidoId())
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
 
@@ -59,9 +52,6 @@ public class CriarPagamentoCartaoUseCase {
             headers.setBearerAuth(accessToken);
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
 
-            // ==========================================
-            // 2. TENTA PROCESSAR PRIMEIRO NO MERCADO PAGO
-            // ==========================================
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
             body.put("external_reference", pedido.getId().toString());
@@ -109,7 +99,7 @@ public class CriarPagamentoCartaoUseCase {
             }
 
             // =========================================================================
-            // 3. VALIDAÇÃO DE SUCESSO: SÓ ALTERA O PEDIDO SE O CARTÃO FOR APROVADO
+            // 3. VALIDAÇÃO DE SUCESSO: ALTERA PEDIDO E LIMPA CARRINHO SÓ SE APROVAR
             // =========================================================================
             if ("processed".equals(statusMP) || "approved".equals(statusMP) || "in_process".equals(statusMP)) {
                 pedido.setStatus(StatusPedido.PROCESSANDO);
@@ -117,20 +107,19 @@ public class CriarPagamentoCartaoUseCase {
                 pedido.setOrderIdMercadoPago(paymentId);
                 pedido.setObservacoes("Pagamento via Cartão aprovado/processado. ID Transação: " + paymentId);
                 pedidoRepository.save(pedido);
+
+                // 👇 LIMPA O CARRINHO AQUI (PAGAMENTO APROVADO!) 👇
+                carrinhoRepository.findByUsuarioId(pedido.getUsuarioId()).ifPresent(carrinho -> {
+                    carrinho.getItens().clear();
+                    carrinhoRepository.save(carrinho);
+                });
             } else {
-                // Se o Mercado Pago recusou (ex: saldo insuficiente), lançamos erro para não limpar o carrinho
                 throw new RuntimeException("Pagamento recusado pelo banco emissor (Status: " + statusMP + ").");
             }
 
-            return new CartaoPagamentoResponse(
-                    pedido.getId(),
-                    statusMP,
-                    challengeUrl,
-                    "Pagamento processado com sucesso"
-            );
+            return new CartaoPagamentoResponse(pedido.getId(), statusMP, challengeUrl, "Pagamento processado com sucesso");
 
         } catch (Exception e) {
-            // Repassa a mensagem limpa para o front-end exibir no toast de erro
             throw new RuntimeException(e.getMessage().contains("recusado") ? e.getMessage() : "Erro ao processar pagamento de cartão: " + e.getMessage());
         }
     }
