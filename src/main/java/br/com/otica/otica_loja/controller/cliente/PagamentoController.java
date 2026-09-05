@@ -44,20 +44,25 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/cartao/{pedidoId}")
-    @PreAuthorize("hasAnyRole('CLIENTE')")
-    public ResponseEntity<CartaoPagamentoResponse> pagarComCartao(
-            @AuthenticationPrincipal Usuario usuarioLogado,
-            @PathVariable UUID pedidoId,
-            @RequestBody CartaoPagamentoRequest request) {
 
-        // Passa o ID seguro do usuário logado diretamente para o UseCase
-        CartaoPagamentoResponse response = criarPagamentoCartaoUseCase.criarPagamento(
+    @PreAuthorize("hasAnyRole('CLIENTE')")
+    @PostMapping("/cartao/{pedidoId}")
+    public ResponseEntity<CartaoPagamentoResponse> pagarComCartao(
+            @PathVariable UUID pedidoId,
+            @RequestBody CartaoPagamentoRequest bodyRequest) {
+
+        // Adicionamos o ID do pedido que veio pela URL no objeto do request
+        CartaoPagamentoRequest requestCompleta = new CartaoPagamentoRequest(
                 pedidoId,
-                usuarioLogado.getId(),
-                request
+                bodyRequest.paymentMethodId(),
+                bodyRequest.tokenGeradoPeloFrontEnd(),
+                bodyRequest.parcelas(),
+                bodyRequest.emailCliente(),
+                bodyRequest.nomeCliente(),
+                bodyRequest.sobrenomeCliente()
         );
 
+        CartaoPagamentoResponse response = criarPagamentoCartaoUseCase.criarPagamento(requestCompleta);
         return ResponseEntity.ok(response);
     }
 
