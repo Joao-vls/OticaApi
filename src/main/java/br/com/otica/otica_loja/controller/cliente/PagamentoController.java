@@ -44,10 +44,10 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
-
     @PreAuthorize("hasAnyRole('CLIENTE')")
     @PostMapping("/cartao/{pedidoId}")
     public ResponseEntity<CartaoPagamentoResponse> pagarComCartao(
+            @AuthenticationPrincipal Usuario usuarioLogado, // 🔒 Injetado com segurança via token
             @PathVariable UUID pedidoId,
             @RequestBody CartaoPagamentoRequest bodyRequest) {
 
@@ -62,7 +62,12 @@ public class PagamentoController {
                 bodyRequest.sobrenomeCliente()
         );
 
-        CartaoPagamentoResponse response = criarPagamentoCartaoUseCase.criarPagamento(requestCompleta);
+        // Passando o request e o ID do usuário logado para o UseCase
+        CartaoPagamentoResponse response = criarPagamentoCartaoUseCase.criarPagamento(
+                requestCompleta,
+                usuarioLogado.getId()
+        );
+
         return ResponseEntity.ok(response);
     }
 
@@ -88,7 +93,6 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/status/{pedidoId}")
     @PreAuthorize("hasAnyRole('CLIENTE')")
     public ResponseEntity<Map<String, String>> checarStatus(
@@ -99,6 +103,7 @@ public class PagamentoController {
 
         return ResponseEntity.ok(Map.of("status", status));
     }
+
     @PostMapping("/cancelar")
     @PreAuthorize("hasRole('ADMIN')") // Apenas administradores podem cancelar pagamentos à força
     public ResponseEntity<Void> cancelarPagamento(

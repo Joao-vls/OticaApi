@@ -1,7 +1,11 @@
 package br.com.otica.otica_loja.UseCases.pagamentos;
 
+import br.com.otica.otica_loja.Entity.Auth.Endereco;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
+import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
+import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
+import br.com.otica.otica_loja.UseCases.usuario.ListarEnderecosUseCase;
 import br.com.otica.otica_loja.dto.CartaoPagamentoRequest;
 import br.com.otica.otica_loja.dto.CartaoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
@@ -28,10 +32,17 @@ public class CriarPagamentoCartaoUseCase {
     @Autowired
     private PedidoRepository pedidoRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private ListarEnderecosUseCase listarEnderecosUseCase;
+
     @Value("${mercadopago.access-token}")
     private String accessToken;
 
-    public CartaoPagamentoResponse criarPagamento(CartaoPagamentoRequest request) {
+    public CartaoPagamentoResponse criarPagamento(CartaoPagamentoRequest request, UUID usuarioId) {
+        // 1. Valida se o pedido existe (caso venha do front já criado) ou busca o usuário/endereço necessário
         Pedido pedido = pedidoRepository.findById(request.pedidoId())
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
 
@@ -46,16 +57,15 @@ public class CriarPagamentoCartaoUseCase {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
-            // Chave de idempotência para evitar cobrança duplicada caso a rede oscile
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
 
             // ==========================================
-            // CRIAÇÃO DA ORDER (Modo Automático - Cartão)
+            // 2. TENTA PROCESSAR PRIMEIRO NO MERCADO PAGO
             // ==========================================
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
             body.put("external_reference", pedido.getId().toString());
-            body.put("processing_mode", "automatic"); // O cartão cobra e processa na mesma chamada
+            body.put("processing_mode", "automatic");
             body.put("total_amount", String.valueOf(pedido.getTotal()));
             body.put("description", "Pedido Ótica - " + pedido.getId());
 
@@ -65,9 +75,8 @@ public class CriarPagamentoCartaoUseCase {
             payer.put("last_name", request.sobrenomeCliente());
             body.put("payer", payer);
 
-            // Mapeia os dados do Brick (token, método e parcelas)
             Map<String, Object> paymentMethod = new HashMap<>();
-            paymentMethod.put("id", request.paymentMethodId()); // ex: "master", "visa"
+            paymentMethod.put("id", request.paymentMethodId());
             paymentMethod.put("type", "credit_card");
             paymentMethod.put("token", request.tokenGeradoPeloFrontEnd());
             paymentMethod.put("installments", request.parcelas());
@@ -92,29 +101,37 @@ public class CriarPagamentoCartaoUseCase {
             JsonNode paymentData = root.path("transactions").path("payments").get(0);
 
             String statusMP = paymentData.path("status").asText("");
+            String paymentId = paymentData.path("id").asText("");
             String challengeUrl = null;
 
-            // Tratamento opcional para 3DS Challenge (exigência de autenticação do banco emissor)
             if (paymentData.has("three_ds_info") && paymentData.path("three_ds_info").has("challenge_url")) {
                 challengeUrl = paymentData.path("three_ds_info").path("challenge_url").asText();
             }
 
-            // Se aprovado ou em processamento, atualiza no banco
+            // =========================================================================
+            // 3. VALIDAÇÃO DE SUCESSO: SÓ ALTERA O PEDIDO SE O CARTÃO FOR APROVADO
+            // =========================================================================
             if ("processed".equals(statusMP) || "approved".equals(statusMP) || "in_process".equals(statusMP)) {
                 pedido.setStatus(StatusPedido.PROCESSANDO);
                 pedido.setAtualizadoEm(OffsetDateTime.now());
+                pedido.setOrderIdMercadoPago(paymentId);
+                pedido.setObservacoes("Pagamento via Cartão aprovado/processado. ID Transação: " + paymentId);
                 pedidoRepository.save(pedido);
+            } else {
+                // Se o Mercado Pago recusou (ex: saldo insuficiente), lançamos erro para não limpar o carrinho
+                throw new RuntimeException("Pagamento recusado pelo banco emissor (Status: " + statusMP + ").");
             }
 
             return new CartaoPagamentoResponse(
                     pedido.getId(),
                     statusMP,
                     challengeUrl,
-                    "Pagamento via cartão enviado com sucesso"
+                    "Pagamento processado com sucesso"
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao processar pagamento de cartão no Mercado Pago: " + e.getMessage(), e);
+            // Repassa a mensagem limpa para o front-end exibir no toast de erro
+            throw new RuntimeException(e.getMessage().contains("recusado") ? e.getMessage() : "Erro ao processar pagamento de cartão: " + e.getMessage());
         }
     }
 }
