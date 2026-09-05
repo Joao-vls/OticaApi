@@ -7,6 +7,11 @@ import br.com.otica.otica_loja.UseCases.usuario.ListarEnderecosUseCase;
 import br.com.otica.otica_loja.dto.BoletoPagamentoRequest;
 import br.com.otica.otica_loja.dto.BoletoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
+
+// 1. IMPORTS CORRETOS DO JACKSON DO SPRING BOOT (com.fasterxml.jackson)
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -16,14 +21,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Locale;
 
 @Service
 public class CriarPagamentoBoletoUseCase {
@@ -32,7 +36,7 @@ public class CriarPagamentoBoletoUseCase {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private ListarEnderecosUseCase listarEnderecosUseCase; // 👈 Injetado para buscar endereço
+    private ListarEnderecosUseCase listarEnderecosUseCase;
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
@@ -45,7 +49,7 @@ public class CriarPagamentoBoletoUseCase {
             throw new IllegalArgumentException("Pedido não está aguardando pagamento.");
         }
 
-        // 1. 🔍 Busca o endereço padrão do usuário no banco
+        // 1. Busca o endereço padrão do usuário no banco
         Endereco enderecoCliente;
         try {
             enderecoCliente = listarEnderecosUseCase.buscarEnderecoPadrao(request.usuarioId());
@@ -56,6 +60,9 @@ public class CriarPagamentoBoletoUseCase {
         try {
             RestTemplate restTemplate = new RestTemplate();
             ObjectMapper mapper = new ObjectMapper();
+
+            // Formata rigorosamente para 2 casas decimais (ex: 50.00) com Locale US
+            String totalAmountStr = String.format(Locale.US, "%.2f", pedido.getTotal());
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -68,7 +75,7 @@ public class CriarPagamentoBoletoUseCase {
             body.put("type", "online");
             body.put("external_reference", pedido.getId().toString());
             body.put("processing_mode", "manual");
-            body.put("total_amount", String.valueOf(pedido.getTotal()));
+            body.put("total_amount", totalAmountStr);
             body.put("description", "Pedido Ótica - " + pedido.getId());
 
             Map<String, Object> payer = new HashMap<>();
@@ -81,16 +88,22 @@ public class CriarPagamentoBoletoUseCase {
             identification.put("number", request.cpfCliente());
             payer.put("identification", identification);
 
-            // 🎯 ENDEREÇO REAL VINDO DO BANCO DE DADOS
+            // Endereço formatado para regras do Mercado Pago (Estado com exatamente 2 letras)
             Map<String, Object> address = new HashMap<>();
-            address.put("zip_code", enderecoCliente.getCep().replaceAll("[^0-9]", ""));
-            address.put("street_name", enderecoCliente.getLogradouro());
+            address.put("zip_code", enderecoCliente.getCep() != null ? enderecoCliente.getCep().replaceAll("[^0-9]", "") : "00000000");
+            address.put("street_name", enderecoCliente.getLogradouro() != null ? enderecoCliente.getLogradouro() : "Rua Principal");
             address.put("street_number", enderecoCliente.getNumero() != null && !enderecoCliente.getNumero().isBlank() ? enderecoCliente.getNumero() : "S/N");
-            address.put("neighborhood", enderecoCliente.getBairro());
-            address.put("city", enderecoCliente.getCidade());
-            address.put("state", enderecoCliente.getEstado());
-            payer.put("address", address);
+            address.put("neighborhood", enderecoCliente.getBairro() != null ? enderecoCliente.getBairro() : "Centro");
+            address.put("city", enderecoCliente.getCidade() != null ? enderecoCliente.getCidade() : "Cidade");
 
+            // Garante que o estado tenha exatamente 2 caracteres maiúsculos (ex: "MG", "SP")
+            String uf = enderecoCliente.getEstado() != null ? enderecoCliente.getEstado().trim().toUpperCase() : "MG";
+            if (uf.length() > 2) {
+                uf = uf.substring(0, 2);
+            }
+            address.put("state", uf);
+
+            payer.put("address", address);
             body.put("payer", payer);
 
             Map<String, Object> paymentMethod = new HashMap<>();
@@ -98,7 +111,7 @@ public class CriarPagamentoBoletoUseCase {
             paymentMethod.put("type", "ticket");
 
             Map<String, Object> paymentItem = new HashMap<>();
-            paymentItem.put("amount", String.valueOf(pedido.getTotal()));
+            paymentItem.put("amount", totalAmountStr);
             paymentItem.put("payment_method", paymentMethod);
 
             Map<String, Object> transactions = new HashMap<>();
@@ -115,7 +128,12 @@ public class CriarPagamentoBoletoUseCase {
             );
 
             JsonNode createRoot = mapper.readTree(createResponse.getBody());
-            String orderId = createRoot.path("id").asString();
+            // Correção do método do Jackson: usar asText(null) em vez de asString()
+            String orderId = createRoot.path("id").asText(null);
+
+            if (orderId == null || orderId.isEmpty()) {
+                throw new RuntimeException("Falha ao obter o ID da Order no Mercado Pago.");
+            }
 
             // ==========================================
             // PASSO 2: PROCESSAR A ORDER
@@ -135,11 +153,12 @@ public class CriarPagamentoBoletoUseCase {
             JsonNode firstPayment = processRoot.path("transactions").path("payments").get(0);
             JsonNode methodResponse = firstPayment.path("payment_method");
 
-            String boletoUrl = methodResponse.path("ticket_url").asString("");
-            String linhaDigitavel = methodResponse.path("digitable_line").asString("");
+            // Correção de asString() para asText("") do Jackson
+            String boletoUrl = methodResponse.path("ticket_url").asText("");
+            String linhaDigitavel = methodResponse.path("digitable_line").asText("");
 
             if (linhaDigitavel.isEmpty()) {
-                linhaDigitavel = methodResponse.path("barcode_content").asString("");
+                linhaDigitavel = methodResponse.path("barcode_content").asText("");
             }
 
             pedido.setStatus(StatusPedido.PROCESSANDO);
@@ -154,7 +173,13 @@ public class CriarPagamentoBoletoUseCase {
                     "Boleto gerado com sucesso"
             );
 
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            // Log detalhado caso o Mercado Pago recuse por validação de campos
+            System.err.println("ERRO MP BOLETO HTTP: " + e.getStatusCode());
+            System.err.println("CORPO DO ERRO MP BOLETO: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Erro da API do Mercado Pago (Boleto): " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Erro ao gerar Boleto no Mercado Pago (Orders API): " + e.getMessage(), e);
         }
     }

@@ -71,17 +71,17 @@ public class PagamentoController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/boleto")
+    @PostMapping("/boleto/{pedidoId}")
     @PreAuthorize("hasAnyRole('CLIENTE')")
     public ResponseEntity<BoletoPagamentoResponse> pagarComBoleto(
             @AuthenticationPrincipal Usuario usuarioLogado,
+            @PathVariable UUID pedidoId,
             @RequestBody BoletoPagamentoRequest requestBody) {
 
-        // 🔒 Segurança: Recriando o Record para forçar o ID e dados essenciais do usuário logado,
-        // removendo os campos de endereço do DTO (o backend buscará o endereço padrão cadastrado).
+        // 🔒 Segurança: Recriando o Record garantindo o pedidoId da URL e o ID do usuário logado
         BoletoPagamentoRequest requestSeguro = new BoletoPagamentoRequest(
-                requestBody.pedidoId(),
-                usuarioLogado.getId(), // Injetado de forma segura do token
+                pedidoId,
+                usuarioLogado.getId(),
                 requestBody.emailCliente() != null ? requestBody.emailCliente() : usuarioLogado.getEmail(),
                 requestBody.nomeCliente(),
                 requestBody.sobrenomeCliente(),
