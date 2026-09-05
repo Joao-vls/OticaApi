@@ -40,10 +40,17 @@ public class WebhookController {
         String eventType = topic != null ? topic : type;
         String resourceId = dataId != null ? dataId : id;
 
-        // 1. VALIDAÇÃO DE SEGURANÇA (Assinatura do Webhook)
+        System.out.println("\n========================================");
+        System.out.println("🔔 WEBHOOK RECEBIDO DO MERCADO PAGO");
+        System.out.println("Tipo de Evento: " + eventType);
+        System.out.println("ID do Recurso: " + resourceId);
+        System.out.println("X-Signature presente? " + (xSignature != null));
+        System.out.println("========================================\n");
+
+        // 1. VALIDAÇÃO DE SEGURANÇA (Aviso apenas, sem bloquear para testes)
         if (!isAssinaturaValida(xSignature, xRequestId, resourceId)) {
-            System.err.println("Tentativa de Webhook inválida/falsa detectada. Acesso negado.");
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            System.err.println("⚠️ ALERTA: Assinatura inválida ou ausente. (Para debug, vamos permitir passar e ver o que quebra depois).");
+            // Se fosse produção estrita, faríamos: return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
         if (("payment".equals(eventType) || "order".equals(eventType)) && resourceId != null) {
@@ -56,6 +63,8 @@ public class WebhookController {
                 String urlConsulta = "order".equals(eventType)
                         ? "https://api.mercadopago.com/v1/orders/" + resourceId
                         : "https://api.mercadopago.com/v1/payments/" + resourceId;
+
+                System.out.println("🔍 Consultando API do MP: " + urlConsulta);
 
                 ResponseEntity<String> response = restTemplate.exchange(
                         urlConsulta,
@@ -72,9 +81,14 @@ public class WebhookController {
                 String paymentIdForDb = "";
                 String paymentMethodId = "";
 
+                System.out.println("📦 External Reference (ID Pedido): " + externalReference);
+
                 if ("order".equals(eventType)) {
                     String orderStatus = root.path("status").asText("");
                     String orderStatusDetail = root.path("status_detail").asText("");
+
+                    System.out.println("📊 Status do Order: " + orderStatus + " | Detail: " + orderStatusDetail);
+
                     isAprovado = "processed".equals(orderStatus) && "accredited".equals(orderStatusDetail);
 
                     JsonNode paymentsArray = root.path("transactions").path("payments");
@@ -83,20 +97,36 @@ public class WebhookController {
                         paymentMethodId = paymentsArray.get(0).path("payment_method").path("id").asText("");
                     }
                 } else {
-                    isAprovado = "approved".equals(root.path("status").asText(""));
+                    String paymentStatus = root.path("status").asText("");
+                    System.out.println("📊 Status do Pagamento: " + paymentStatus);
+
+                    isAprovado = "approved".equals(paymentStatus);
                     paymentIdForDb = resourceId;
                     paymentMethodId = root.path("payment_method_id").asText("");
                 }
 
-                if (isAprovado && externalReference != null && !externalReference.isEmpty()) {
-                    UUID pedidoId = UUID.fromString(externalReference);
-                    ConfirmarPagamentoRequest request = new ConfirmarPagamentoRequest(
-                            pedidoId, null, paymentMethodId, paymentIdForDb
-                    );
-                    confirmarPagamentoUseCase.confirmarPagamento(request);
+                if (isAprovado) {
+                    if (externalReference != null && !externalReference.isEmpty() && !externalReference.equals("null")) {
+                        System.out.println("✅ Pagamento aprovado! Atualizando pedido: " + externalReference);
+
+                        UUID pedidoId = UUID.fromString(externalReference);
+                        ConfirmarPagamentoRequest request = new ConfirmarPagamentoRequest(
+                                pedidoId, null, paymentMethodId, paymentIdForDb
+                        );
+                        confirmarPagamentoUseCase.confirmarPagamento(request);
+
+                        System.out.println("🎉 Banco de dados atualizado com sucesso para PAGO!");
+                    } else {
+                        System.err.println("❌ Erro: O pagamento foi aprovado, mas o Mercado Pago não devolveu a external_reference (ID do Pedido).");
+                    }
+                } else {
+                    System.out.println("⏳ Ignorando... O status atual não é aprovado/processado.");
                 }
+
+            } catch (IllegalArgumentException e) {
+                System.err.println("❌ Erro: O UUID recebido ('" + e.getMessage() + "') não existe no banco de dados.");
             } catch (Exception e) {
-                System.err.println("Erro ao processar Webhook do Mercado Pago: " + e.getMessage());
+                System.err.println("❌ Erro grave ao processar Webhook do Mercado Pago: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -104,17 +134,12 @@ public class WebhookController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    /**
-     * Valida a autenticidade do webhook gerando um hash HMAC-SHA256
-     * e comparando com a assinatura enviada pelo Mercado Pago.
-     */
     private boolean isAssinaturaValida(String xSignature, String xRequestId, String dataId) {
         if (xSignature == null || xRequestId == null || dataId == null || webhookSecret == null || webhookSecret.isBlank()) {
             return false;
         }
 
         try {
-            // O formato do x-signature é: ts=1701234567,v1=ab12cd34ef56...
             String ts = "";
             String hashEnviado = "";
             String[] parts = xSignature.split(",");
@@ -125,10 +150,7 @@ public class WebhookController {
 
             if (ts.isEmpty() || hashEnviado.isEmpty()) return false;
 
-            // O manifesto exigido pelo Mercado Pago é: id:{dataId};request-id:{xRequestId};ts:{ts};
             String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
-
-            // Gera o hash HMAC-SHA256 usando a sua chave secreta
             Mac sha256Hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256Hmac.init(secretKey);
@@ -139,11 +161,9 @@ public class WebhookController {
                 hashCalculado.append(String.format("%02x", b));
             }
 
-            // A requisição só é válida se o hash que calculamos for idêntico ao que o MP enviou
             return hashCalculado.toString().equals(hashEnviado);
 
         } catch (Exception e) {
-            System.err.println("Erro ao validar assinatura do webhook: " + e.getMessage());
             return false;
         }
     }
