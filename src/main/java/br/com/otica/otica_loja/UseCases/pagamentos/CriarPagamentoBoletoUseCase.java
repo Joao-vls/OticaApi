@@ -65,7 +65,7 @@ public class CriarPagamentoBoletoUseCase {
             headers.setBearerAuth(accessToken);
 
             // ==========================================
-            // MONTAGEM DO PAYLOAD DE ORDEM PARA BOLETO
+            // MONTAGEM DO PAYLOAD DE ORDEM PARA BOLETO (PRODUÇÃO)
             // ==========================================
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
@@ -75,27 +75,48 @@ public class CriarPagamentoBoletoUseCase {
             body.put("description", "Pedido Ótica - " + pedido.getId());
 
             Map<String, Object> payer = new HashMap<>();
-            payer.put("email", request.emailCliente() != null && !request.emailCliente().isBlank() ? request.emailCliente() : "test_user@test.com");
 
-            // Tratamento de Nome e Sobrenome obrigatórios para boletos
-            String nome = request.nomeCliente() != null && !request.nomeCliente().isBlank() ? request.nomeCliente().trim() : "Cliente";
-            String sobrenome = request.sobrenomeCliente() != null && !request.sobrenomeCliente().isBlank() ? request.sobrenomeCliente().trim() : "Teste";
+            // 🌐 EM PRODUÇÃO: Utiliza o e-mail real do cliente
+            String emailCliente = request.emailCliente();
+            if (emailCliente == null || emailCliente.isBlank()) {
+                throw new IllegalArgumentException("O e-mail do cliente é obrigatório para emissão do boleto.");
+            }
+            payer.put("email", emailCliente.trim());
 
-            payer.put("first_name", nome);
-            payer.put("last_name", sobrenome);
+            String nome = request.nomeCliente();
+            String sobrenome = request.sobrenomeCliente();
+
+            if (nome == null || nome.isBlank() || sobrenome == null || sobrenome.isBlank()) {
+                throw new IllegalArgumentException("Nome e sobrenome do cliente são obrigatórios para emissão do boleto.");
+            }
+
+            payer.put("first_name", nome.trim());
+            payer.put("last_name", sobrenome.trim());
 
             Map<String, Object> identification = new HashMap<>();
             identification.put("type", "CPF");
-            String cpfLimpo = request.cpfCliente() != null ? request.cpfCliente().replaceAll("[^0-9]", "") : "00000000000";
+
+            // Limpa o CPF estritamente para conter apenas números (11 dígitos)
+            String cpfLimpo = request.cpfCliente() != null ? request.cpfCliente().replaceAll("[^0-9]", "") : "";
+            if (cpfLimpo.length() != 11) {
+                throw new IllegalArgumentException("CPF inválido ou incompleto para emissão do boleto.");
+            }
             identification.put("number", cpfLimpo);
             payer.put("identification", identification);
 
+            // Validação e limpeza do Endereço Real
             Map<String, Object> address = new HashMap<>();
-            address.put("zip_code", enderecoCliente.getCep() != null ? enderecoCliente.getCep().replaceAll("[^0-9]", "") : "39480000");
-            address.put("street_name", enderecoCliente.getLogradouro() != null ? enderecoCliente.getLogradouro() : "Rua Principal");
-            address.put("street_number", enderecoCliente.getNumero() != null && !enderecoCliente.getNumero().isBlank() ? enderecoCliente.getNumero() : "S/N");
-            address.put("neighborhood", enderecoCliente.getBairro() != null ? enderecoCliente.getBairro() : "Centro");
-            address.put("city", enderecoCliente.getCidade() != null ? enderecoCliente.getCidade() : "Januaria");
+
+            String cepLimpo = enderecoCliente.getCep() != null ? enderecoCliente.getCep().replaceAll("[^0-9]", "") : "";
+            if (cepLimpo.length() != 8) {
+                throw new IllegalArgumentException("O CEP do endereço precisa conter 8 dígitos.");
+            }
+            address.put("zip_code", cepLimpo);
+
+            address.put("street_name", enderecoCliente.getLogradouro() != null ? enderecoCliente.getLogradouro().trim() : "Rua Principal");
+            address.put("street_number", enderecoCliente.getNumero() != null && !enderecoCliente.getNumero().isBlank() ? enderecoCliente.getNumero().trim() : "S/N");
+            address.put("neighborhood", enderecoCliente.getBairro() != null ? enderecoCliente.getBairro().trim() : "Centro");
+            address.put("city", enderecoCliente.getCidade() != null ? enderecoCliente.getCidade().trim() : "Cidade");
 
             String uf = enderecoCliente.getEstado() != null ? enderecoCliente.getEstado().trim().toUpperCase() : "MG";
             if (uf.length() > 2) {
@@ -114,7 +135,7 @@ public class CriarPagamentoBoletoUseCase {
             Map<String, Object> paymentItem = new HashMap<>();
             paymentItem.put("amount", totalAmountStr);
             paymentItem.put("payment_method", paymentMethod);
-            paymentItem.put("expiration_time", "P3D"); // Prazo de vencimento de 3 dias úteis
+            paymentItem.put("expiration_time", "P3D"); // Vencimento em 3 dias
 
             Map<String, Object> transactions = new HashMap<>();
             transactions.put("payments", List.of(paymentItem));
@@ -123,7 +144,7 @@ public class CriarPagamentoBoletoUseCase {
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
             HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(body, headers);
 
-            System.out.println("Enviando requisição de Boleto para Orders API...");
+            System.out.println("Enviando requisição de Boleto (PRODUÇÃO) para Orders API...");
 
             ResponseEntity<String> createResponse = restTemplate.postForEntity(
                     "https://api.mercadopago.com/v1/orders",
@@ -163,10 +184,10 @@ public class CriarPagamentoBoletoUseCase {
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             String responseBody = e.getResponseBodyAsString();
-            System.err.println("=== ERRO 422 DETALHADO DO MERCADO PAGO (BOLETO) ===");
+            System.err.println("=== ERRO 422 MERCADO PAGO PRODUÇÃO (BOLETO) ===");
             System.err.println("Status HTTP: " + e.getStatusCode());
             System.err.println("ResponseBody completo: " + responseBody);
-            System.err.println("==================================================");
+            System.err.println("================================================");
 
             throw new RuntimeException("Erro do Mercado Pago no Boleto: " + responseBody, e);
         } catch (Exception e) {
