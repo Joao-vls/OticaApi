@@ -40,9 +40,9 @@ public class WebhookController {
         String eventType = topic != null ? topic : type;
         String resourceId = dataId != null ? dataId : id;
 
-        // 🔒 VALIDAÇÃO DE SEGURANÇA ROBUSTA (Padrão Oficial Mercado Pago)
+        // 🔒 SEGURANÇA ESTRITA: Rejeita imediatamente se a assinatura for falsa ou ausente
         if (!isAssinaturaValida(xSignature, xRequestId, resourceId)) {
-            System.err.println("Tentativa de Webhook inválida/falsa detectada ou chave secreta divergente. Acesso negado.");
+            System.err.println("Tentativa de Webhook sem assinatura válida bloqueada por segurança.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -112,16 +112,10 @@ public class WebhookController {
     }
 
     /**
-     * Validação oficial de assinatura do Mercado Pago baseada na documentação técnica.
+     * Validação restrita e obrigatória da assinatura oficial do Mercado Pago.
      */
     private boolean isAssinaturaValida(String xSignature, String xRequestId, String dataId) {
-        // Se a chave secreta não estiver configurada no ambiente, rejeita por segurança
-        if (webhookSecret == null || webhookSecret.isBlank()) {
-            System.err.println("Aviso: 'mercadopago.webhook-secret' não está configurada nas propriedades/variáveis.");
-            return false;
-        }
-
-        if (xSignature == null || xRequestId == null || dataId == null) {
+        if (webhookSecret == null || webhookSecret.isBlank() || xSignature == null || xRequestId == null || dataId == null) {
             return false;
         }
 
@@ -129,7 +123,6 @@ public class WebhookController {
             String ts = null;
             String hashEnviado = null;
 
-            // Extrai os campos 'ts' e 'v1' do cabeçalho x-signature
             String[] parts = xSignature.split(",");
             for (String part : parts) {
                 String[] keyValue = part.trim().split("=");
@@ -146,10 +139,8 @@ public class WebhookController {
                 return false;
             }
 
-            // Constrói a string de manifesto oficial exigida pelo Mercado Pago
             String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
 
-            // Executa o cálculo HMAC-SHA256
             Mac sha256Hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256Hmac.init(secretKey);
@@ -162,11 +153,10 @@ public class WebhookController {
 
             String hashCalculado = sb.toString();
 
-            // Compara de forma segura o hash calculado com o hash enviado pelo MP
             return hashCalculado.equals(hashEnviado);
 
         } catch (Exception e) {
-            System.err.println("Erro ao processar o cálculo de segurança do webhook: " + e.getMessage());
+            System.err.println("Erro ao validar assinatura criptográfica do webhook: " + e.getMessage());
             return false;
         }
     }
