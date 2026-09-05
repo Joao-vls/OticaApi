@@ -13,6 +13,9 @@ import org.springframework.web.client.RestTemplate;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -38,15 +41,18 @@ public class WebhookController {
             @RequestHeader(value = "x-request-id", required = false) String xRequestId) {
 
         String eventType = topic != null ? topic : type;
-        String resourceId = dataId != null ? dataId : id;
+        // O resourceId real para validação do manifesto costuma ser o dataId em minúsculo
+        String resourceId = dataId != null ? dataId.toLowerCase() : (id != null ? id.toLowerCase() : null);
 
-        // 🔒 SEGURANÇA ESTRITA: Rejeita imediatamente se a assinatura for falsa ou ausente
+        // 🔒 SEGURANÇA ESTRITA: Validação baseada na documentação oficial do Mercado Pago
         if (!isAssinaturaValida(xSignature, xRequestId, resourceId)) {
             System.err.println("Tentativa de Webhook sem assinatura válida bloqueada por segurança.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        if (("payment".equals(eventType) || "order".equals(eventType)) && resourceId != null) {
+        String targetId = dataId != null ? dataId : id;
+
+        if (("payment".equals(eventType) || "order".equals(eventType)) && targetId != null) {
             try {
                 RestTemplate restTemplate = new RestTemplate();
                 HttpHeaders headers = new HttpHeaders();
@@ -54,8 +60,8 @@ public class WebhookController {
                 HttpEntity<Void> entity = new HttpEntity<>(headers);
 
                 String urlConsulta = "order".equals(eventType)
-                        ? "https://api.mercadopago.com/v1/orders/" + resourceId
-                        : "https://api.mercadopago.com/v1/payments/" + resourceId;
+                        ? "https://api.mercadopago.com/v1/orders/" + targetId
+                        : "https://api.mercadopago.com/v1/payments/" + targetId;
 
                 ResponseEntity<String> response = restTemplate.exchange(
                         urlConsulta,
@@ -86,7 +92,7 @@ public class WebhookController {
                 } else {
                     String paymentStatus = root.path("status").asText("");
                     isAprovado = "approved".equals(paymentStatus);
-                    paymentIdForDb = resourceId;
+                    paymentIdForDb = targetId;
                     paymentMethodId = root.path("payment_method_id").asText("");
                 }
 
@@ -112,10 +118,10 @@ public class WebhookController {
     }
 
     /**
-     * Validação restrita e obrigatória da assinatura oficial do Mercado Pago.
+     * Validação oficial de assinatura baseada estritamente na documentação do SDK Java do Mercado Pago.
      */
     private boolean isAssinaturaValida(String xSignature, String xRequestId, String dataId) {
-        if (webhookSecret == null || webhookSecret.isBlank() || xSignature == null || xRequestId == null || dataId == null) {
+        if (webhookSecret == null || webhookSecret.isBlank() || xSignature == null || xRequestId == null) {
             return false;
         }
 
@@ -123,37 +129,45 @@ public class WebhookController {
             String ts = null;
             String hashEnviado = null;
 
-            String[] parts = xSignature.split(",");
-            for (String part : parts) {
-                String[] keyValue = part.trim().split("=");
-                if (keyValue.length == 2) {
-                    if (keyValue[0].equals("ts")) {
-                        ts = keyValue[1];
-                    } else if (keyValue[0].equals("v1")) {
-                        hashEnviado = keyValue[1];
-                    }
-                }
+            for (String part : xSignature.split(",")) {
+                String[] kv = part.split("=", 2);
+                if (kv.length != 2) continue;
+                String key = kv[0].trim();
+                String val = kv[1].trim();
+                if ("ts".equals(key)) ts = val;
+                if ("v1".equals(key)) hashEnviado = val;
             }
 
             if (ts == null || hashEnviado == null) {
                 return false;
             }
 
-            String manifest = "id:" + dataId + ";request-id:" + xRequestId + ";ts:" + ts + ";";
-
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-
-            byte[] macData = sha256Hmac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : macData) {
-                sb.append(String.format("%02x", b));
+            // Constrói o manifesto oficial omitindo valores vazios conforme a especificação
+            List<String> parts = new ArrayList<>();
+            if (dataId != null && !dataId.isEmpty()) {
+                parts.add("id:" + dataId);
             }
+            if (xRequestId != null && !xRequestId.isEmpty()) {
+                parts.add("request-id:" + xRequestId);
+            }
+            parts.add("ts:" + ts);
+            String manifest = String.join(";", parts) + ";";
 
-            String hashCalculado = sb.toString();
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(webhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] bytes = mac.doFinal(manifest.getBytes(StandardCharsets.UTF_8));
 
-            return hashCalculado.equals(hashEnviado);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b & 0xff));
+            }
+            String computed = sb.toString();
+
+            // Comparação segura de tempo constante
+            return MessageDigest.isEqual(
+                    computed.getBytes(StandardCharsets.UTF_8),
+                    hashEnviado.getBytes(StandardCharsets.UTF_8)
+            );
 
         } catch (Exception e) {
             System.err.println("Erro ao validar assinatura criptográfica do webhook: " + e.getMessage());
