@@ -22,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -43,6 +44,9 @@ public class SecurityConfig {
                         // Preflight HTTP (CORS OPTIONS)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // 🔥 Liberação da rota do Keep-Alive (UptimeRobot / Render)
+                        .requestMatchers("/health").permitAll()
+
                         // Endpoints públicos de autenticação
                         .requestMatchers("/admin/auth/**", "/api/auth/**", "/auth/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
@@ -50,12 +54,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/avaliacoes/produto/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pagamentos/webhook").permitAll()
                         .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
-                        // Áreas administrativas (Nota: hasAnyRole remove o prefixo ROLE_ internamente)
+
+                        // Áreas administrativas
                         .requestMatchers(HttpMethod.POST, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE") // Se o atendente puder enviar mensagens
+                        .requestMatchers(HttpMethod.POST, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE")
                         .requestMatchers(HttpMethod.PUT, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE")
 
                         // Área restrita do cliente
