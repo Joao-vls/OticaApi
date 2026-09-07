@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.*;
 
 @Service
@@ -35,7 +36,7 @@ public class ObterFiltrosDisponiveisUseCase {
         Set<String> marcas = new HashSet<>();
         produtosAtivos.forEach(p -> {
             if (p.getMarca() != null && p.getMarca().getNome() != null) {
-                marcas.add(p.getMarca().getNome());
+                marcas.add(p.getMarca().getNome().trim());
             }
         });
 
@@ -45,6 +46,7 @@ public class ObterFiltrosDisponiveisUseCase {
                 .flatMap(p -> p.getCategorias().stream())
                 .map(Categoria::getNome)
                 .filter(Objects::nonNull)
+                .map(String::trim)
                 .forEach(categorias::add);
 
         // 4. Extração de cores das variantes
@@ -53,6 +55,7 @@ public class ObterFiltrosDisponiveisUseCase {
                 .flatMap(p -> p.getVariantes().stream())
                 .map(ProdutoVariante::getColorName)
                 .filter(Objects::nonNull)
+                .map(String::trim)
                 .forEach(cores::add);
 
         // 5. Extração de graus disponíveis
@@ -67,7 +70,9 @@ public class ObterFiltrosDisponiveisUseCase {
         List<ProdutoRepository.SpecKeyValueProjection> specsProjections = produtoRepository.buscarTodasSpecsAtivas();
 
         for (ProdutoRepository.SpecKeyValueProjection spec : specsProjections) {
-            specsMap.computeIfAbsent(spec.getChave(), k -> new HashSet<>()).add(spec.getValor());
+            if (spec.getChave() != null && spec.getValor() != null) {
+                specsMap.computeIfAbsent(spec.getChave(), k -> new HashSet<>()).add(spec.getValor().trim());
+            }
         }
 
         return FiltrosDisponiveisDTO.builder()
