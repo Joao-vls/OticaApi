@@ -37,6 +37,26 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
             nativeQuery = true)
     List<Produto> findByNomeContainingIgnoreCase(@Param("termo") String termo);
 
+    // 🔥 BUSCA GLOBAL COMPLETA (Ignora Acentos e Maiúsculas/Minúsculas usando ILIKE)
+    @Query(value = "SELECT DISTINCT p.* FROM loja.produtos p " +
+            "LEFT JOIN loja.marcas m ON p.marca_id = m.id " +
+            "LEFT JOIN loja.produto_variantes v ON v.produto_id = p.id " +
+            "LEFT JOIN loja.produto_categoria pc ON pc.produto_id = p.id " +
+            "LEFT JOIN loja.categorias c ON c.id = pc.categoria_id " +
+            "WHERE p.ativo = true AND p.deletado_em IS NULL " +
+            "AND (" +
+            "   unaccent(p.nome) ILIKE unaccent(CONCAT('%', :termo, '%')) " +
+            "   OR unaccent(p.descricao) ILIKE unaccent(CONCAT('%', :termo, '%')) " +
+            "   OR unaccent(p.specs::text) ILIKE unaccent(CONCAT('%', :termo, '%')) " + // JSONB Imune a case e acento
+            "   OR unaccent(m.nome) ILIKE unaccent(CONCAT('%', :termo, '%')) " +
+            "   OR unaccent(c.nome) ILIKE unaccent(CONCAT('%', :termo, '%')) " +
+            "   OR v.sku ILIKE CONCAT('%', :termo, '%') " +
+            "   OR v.codigo_barras ILIKE CONCAT('%', :termo, '%') " +
+            "   OR unaccent(v.color_name) ILIKE unaccent(CONCAT('%', :termo, '%')) " +
+            ")",
+            nativeQuery = true)
+    List<Produto> pesquisaGlobalCompleta(@Param("termo") String termo);
+
     // 🔥 BUSCA EM N:N (Mapeia a propriedade 'id' dentro do Set<Categoria> 'categorias')
     List<Produto> findByCategorias_Id(UUID categoriaId);
 

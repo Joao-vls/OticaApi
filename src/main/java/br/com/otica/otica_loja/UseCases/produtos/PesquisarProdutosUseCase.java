@@ -15,13 +15,12 @@ public class PesquisarProdutosUseCase {
     private final ProdutoRepository produtoRepository;
 
     /**
-     * Pesquisa produtos por nome (busca parcial).
+     * Pesquisa produtos por nome (busca parcial original).
      */
     public List<Produto> pesquisarPorNome(String termo) {
         if (termo == null || termo.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        // Envia a palavra limpa sem concatenar '%'
         return produtoRepository.findByNomeContainingIgnoreCase(termo.trim());
     }
 
@@ -34,13 +33,21 @@ public class PesquisarProdutosUseCase {
     }
 
     /**
-     * Pesquisa produtos por texto livre.
+     * 🔥 Pesquisa Global Completa (Barra de Busca Principal do Site)
      */
     public List<Produto> pesquisarPorTextoLivre(String termo) {
         if (termo == null || termo.trim().isEmpty()) {
             return Collections.emptyList();
         }
-        // Envia a palavra limpa sem concatenar '%'
-        return produtoRepository.findByNomeContainingIgnoreCase(termo.trim());
+
+        /*
+         * MÁGICA DE UX: Troca espaços por '%'
+         * Se o cliente digitar: "ray ban polarizado"
+         * O Java transforma em: "ray%ban%polarizado"
+         * Isso permite encontrar produtos mesmo que a ordem ou espaçamento sejam diferentes!
+         */
+        String termoOtimizado = termo.trim().replaceAll("\\s+", "%");
+
+        return produtoRepository.pesquisaGlobalCompleta(termoOtimizado);
     }
 }
