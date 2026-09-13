@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,7 +20,9 @@ public class CriarCupomUseCase {
     public Cupom criar(String codigo, String descricao, String tipo, BigDecimal valor,
                        BigDecimal valorMinimoPedido, Integer quantidadeTotal,
                        OffsetDateTime dataInicio, OffsetDateTime dataFim,
-                       UUID usuarioIdEspecifico, UUID produtoIdEspecifico, Boolean usoUnico) { // Novos parâmetros
+                       List<UUID> usuariosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
+                       List<UUID> produtosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
+                       Boolean usoUnico) {
 
         if (cupomRepository.existsByCodigo(codigo)) {
             throw new IllegalArgumentException("Já existe um cupom com este código.");
@@ -34,9 +38,14 @@ public class CriarCupomUseCase {
         cupom.setQuantidadeTotal(quantidadeTotal);
         cupom.setQuantidadeUtilizada(0);
 
-        // Atribuindo os novos campos
-        cupom.setUsuarioIdEspecifico(usuarioIdEspecifico);
-        cupom.setProdutoIdEspecifico(produtoIdEspecifico);
+        // Atribuindo as listas (Se vier nulo, a entidade já inicializou como HashSet vazio)
+        if (usuariosIdsEspecificos != null) {
+            cupom.setUsuariosIdsEspecificos(new HashSet<>(usuariosIdsEspecificos));
+        }
+        if (produtosIdsEspecificos != null) {
+            cupom.setProdutosIdsEspecificos(new HashSet<>(produtosIdsEspecificos));
+        }
+
         cupom.setUsoUnico(usoUnico != null ? usoUnico : false);
 
         cupom.setDataInicio(dataInicio);

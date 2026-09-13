@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Setter
@@ -41,11 +43,16 @@ public class Cupom {
     private Integer quantidadeUtilizada = 0;
 
     // NOVOS CAMPOS ADICIONADOS 👇
-    @Column(name = "usuario_id_especifico")
-    private UUID usuarioIdEspecifico; // Se preenchido, só este usuário pode usar
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "cupom_usuarios", schema = "loja", joinColumns = @JoinColumn(name = "cupom_id"))
+    @Column(name = "usuario_id")
+    private Set<UUID> usuariosIdsEspecificos = new HashSet<>();
 
-    @Column(name = "produto_id_especifico")
-    private UUID produtoIdEspecifico; // Se preenchido, exige que o produto esteja no pedido
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "cupom_produtos", schema = "loja", joinColumns = @JoinColumn(name = "cupom_id"))
+    @Column(name = "produto_id")
+    private Set<UUID> produtosIdsEspecificos = new HashSet<>();
+
 
     @Column(name = "uso_unico", nullable = false)
     private Boolean usoUnico = false; // Se true, o cupom é inativado após 1 uso (independente da quantidade total)

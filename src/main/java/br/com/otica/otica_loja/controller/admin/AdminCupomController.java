@@ -48,8 +48,8 @@ public class AdminCupomController {
                 request.quantidadeTotal(),
                 request.dataInicio(),
                 request.dataFim(),
-                request.usuarioIdEspecifico(),
-                request.produtoIdEspecifico(),
+                request.usuariosIdsEspecificos(),
+                request.produtosIdsEspecificos(),
                 request.usoUnico()
 
         );

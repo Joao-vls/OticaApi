@@ -34,16 +34,28 @@ public class AplicarCupomUseCase {
             throw new IllegalArgumentException("O limite de usos para este cupom já foi atingido.");
         }
 
-        // 3. Validação de Usuário Específico
-        if (cupom.getUsuarioIdEspecifico() != null && !cupom.getUsuarioIdEspecifico().equals(usuarioRequisitanteId)) {
-            throw new IllegalArgumentException("Este cupom não pertence a este usuário.");
+
+        // 3. Validação de Usuários Específicos
+        if (cupom.getUsuariosIdsEspecificos() != null && !cupom.getUsuariosIdsEspecificos().isEmpty()) {
+            if (!cupom.getUsuariosIdsEspecificos().contains(usuarioRequisitanteId)) {
+                throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
+            }
         }
 
-        // 4. Validação de Produto Específico
-        if (cupom.getProdutoIdEspecifico() != null && (produtosNoPedidoIds == null || !produtosNoPedidoIds.contains(cupom.getProdutoIdEspecifico()))) {
-            throw new IllegalArgumentException("Este cupom só é válido para um produto específico que não está no carrinho.");
-        }
+        // 4. Validação de Produtos Específicos
+        if (cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
+            if (produtosNoPedidoIds == null || produtosNoPedidoIds.isEmpty()) {
+                throw new IllegalArgumentException("Nenhum produto válido no carrinho para este cupom.");
+            }
 
+            // Verifica se ALGUM produto do pedido está na lista de produtos permitidos pelo cupom
+            boolean temProdutoValido = produtosNoPedidoIds.stream()
+                    .anyMatch(id -> cupom.getProdutosIdsEspecificos().contains(id));
+
+            if (!temProdutoValido) {
+                throw new IllegalArgumentException("Este cupom só é válido para produtos específicos que não estão no carrinho.");
+            }
+        }
         // 5. Cálculo do Desconto
         BigDecimal desconto = BigDecimal.ZERO;
 
