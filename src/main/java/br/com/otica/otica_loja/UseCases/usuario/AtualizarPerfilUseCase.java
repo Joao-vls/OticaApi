@@ -61,16 +61,27 @@ public class AtualizarPerfilUseCase {
             perfil.setDataNascimento(dataNascimento);
         }
 
+        // 🔥 4. Validação e Tratamento do CPF
         if (cpf != null && !cpf.isBlank()) {
-            perfil.setCpf(cpf);
+            // Remove máscara e deixa apenas números
+            String cpfLimpo = cpf.replaceAll("\\D", "");
+
+            if (!cpfLimpo.isEmpty()) {
+                // Valida se o CPF já pertence a outro usuário cadastrado
+                boolean cpfJaCadastrado = perfilRepository.existsByCpfAndUsuarioIdNot(cpfLimpo, usuarioId);
+                if (cpfJaCadastrado) {
+                    throw new IllegalArgumentException("Este CPF já está cadastrado em outra conta.Caso esse seja seu cpf entre em contato com o suporte");
+                }
+                perfil.setCpf(cpfLimpo);
+            }
         }
 
-        // ✅ 4. Atualizar gênero (masculino, feminino, outros)
+        // ✅ 5. Atualizar gênero (masculino, feminino, outros)
         if (genero != null && !genero.isBlank()) {
             perfil.setGenero(genero);
         }
 
-        // 5. Persistir alterações
+        // 6. Persistir alterações
         usuarioRepository.save(usuario);
         return perfilRepository.save(perfil);
     }
