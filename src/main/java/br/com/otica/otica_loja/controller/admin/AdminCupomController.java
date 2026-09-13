@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -31,6 +32,9 @@ public class AdminCupomController {
 
     @Autowired
     private AplicarCupomUseCase aplicarCupomUseCase;
+
+    @Autowired
+    private ListarCuponsUseCase listarCuponsUseCase;
 
     // 1. Criar um novo cupom
     @PostMapping
@@ -76,7 +80,11 @@ public class AdminCupomController {
         excluirCupomUseCase.excluir(id);
         return ResponseEntity.noContent().build();
     }
-
+    @GetMapping
+    public ResponseEntity<List<Cupom>> listarTodos() {
+        List<Cupom> cupons = listarCuponsUseCase.listarTodos();
+        return ResponseEntity.ok(cupons);
+    }
     // 4. Apenas Validar as regras do cupom sem computar uso
     @GetMapping("/validar")
     public ResponseEntity<Cupom> validarCupom(@RequestParam String codigo, @RequestParam BigDecimal valorPedido) {
