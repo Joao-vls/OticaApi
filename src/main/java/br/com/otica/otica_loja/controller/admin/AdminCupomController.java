@@ -43,7 +43,11 @@ public class AdminCupomController {
                 request.valorMinimoPedido(),
                 request.quantidadeTotal(),
                 request.dataInicio(),
-                request.dataFim()
+                request.dataFim(),
+                request.usuarioIdEspecifico(),
+                request.produtoIdEspecifico(),
+                request.usoUnico()
+
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(novoCupom);
     }
@@ -86,7 +90,9 @@ public class AdminCupomController {
         BigDecimal valorFinal = aplicarCupomUseCase.aplicar(
                 request.codigo(),
                 request.valorPedido(),
-                request.valorFrete()
+                request.valorFrete(),
+                request.usuarioId(),
+                request.produtosIds()
         );
         return ResponseEntity.ok(valorFinal);
     }
