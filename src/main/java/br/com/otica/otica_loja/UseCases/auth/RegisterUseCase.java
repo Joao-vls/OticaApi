@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.UseCases.auth;
 import br.com.otica.otica_loja.Entity.Auth.Perfil;
 import br.com.otica.otica_loja.Entity.Auth.Permissao;
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
+import br.com.otica.otica_loja.Repository.Auth.PerfilRepository;
 import br.com.otica.otica_loja.Repository.Auth.PermissaoRepository;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import br.com.otica.otica_loja.dto.auth.RegisterRequest;
@@ -22,6 +23,9 @@ public class RegisterUseCase {
     private PermissaoRepository permissaoRepository;
 
     @Autowired
+    private PerfilRepository perfilRepository; // <-- Injetado
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -31,7 +35,14 @@ public class RegisterUseCase {
             throw new IllegalArgumentException("E-mail já cadastrado no sistema.");
         }
 
-        // 2. Cria a entidade Usuario
+        // 2. Valida se o CPF já está cadastrado (ignorando nulos/vazios caso não seja obrigatório)
+        if (request.getCpf() != null && !request.getCpf().trim().isEmpty()) {
+            if (perfilRepository.existsByCpf(request.getCpf())) {
+                throw new IllegalArgumentException("CPF já cadastrado no sistema.");
+            }
+        }
+
+        // 3. Cria a entidade Usuario
         Usuario usuario = new Usuario();
         usuario.setNome(request.getNome());
         usuario.setEmail(request.getEmail().toLowerCase().trim());
@@ -40,7 +51,7 @@ public class RegisterUseCase {
         usuario.setAtivo(true);
         usuario.setVerificado(false);
 
-        // 3. Cria e associa o Perfil (1:1)
+        // 4. Cria e associa o Perfil (1:1)
         Perfil perfil = new Perfil();
         perfil.setNome(request.getNome());
         perfil.setTelefone(request.getTelefone());
@@ -48,13 +59,13 @@ public class RegisterUseCase {
         perfil.setUsuario(usuario);
         usuario.setPerfil(perfil);
 
-        // 4. Busca a permissão CLIENTE e atribui ao usuário
+        // 5. Busca a permissão CLIENTE e atribui ao usuário
         Permissao permissaoCliente = permissaoRepository.findByNome(PermissaoNome.CLIENTE)
                 .orElseThrow(() -> new IllegalStateException("Permissão CLIENTE não encontrada na base de dados."));
 
         usuario.addPermissao(permissaoCliente);
 
-        // 5. Salva o usuário no banco (com perfil via CascadeType.ALL)
+        // 6. Salva o usuário no banco (com perfil via CascadeType.ALL)
         return usuarioRepository.save(usuario);
     }
 }

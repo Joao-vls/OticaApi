@@ -39,7 +39,7 @@ public class Perfil {
     @Column(name = "avatar_path", columnDefinition = "TEXT")
     private String avatarPath;
 
-    @Column(length = 14)
+    @Column(length = 14, unique = true)
     private String cpf;
 
     @Column(name = "data_nascimento")

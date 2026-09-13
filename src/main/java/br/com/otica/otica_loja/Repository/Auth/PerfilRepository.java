@@ -16,6 +16,7 @@ public interface PerfilRepository extends JpaRepository<Perfil, UUID> {
     // Verificar se já existe username
     boolean existsByUsername(String username);
 
+    boolean existsByCpf(String cpf);
     // Buscar perfil pelo CPF
     Optional<Perfil> findByCpf(String cpf);
 

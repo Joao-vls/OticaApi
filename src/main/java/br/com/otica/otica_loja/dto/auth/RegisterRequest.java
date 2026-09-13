@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.dto.auth;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.br.CPF; // <-- Importação do validador
 import lombok.Getter;
 import lombok.Setter;
 
@@ -23,5 +24,7 @@ public class RegisterRequest {
     private String senha;
 
     private String telefone;
+
+    @CPF(message = "CPF inválido.") // <-- Valida se a string é um CPF real
     private String cpf;
 }
