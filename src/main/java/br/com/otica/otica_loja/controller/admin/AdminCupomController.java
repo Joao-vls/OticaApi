@@ -56,7 +56,8 @@ public class AdminCupomController {
         return ResponseEntity.status(HttpStatus.CREATED).body(novoCupom);
     }
 
-    // 2. Atualizar um cupom existente
+
+// 2. Atualizar um cupom existente
     @PutMapping("/{id}")
     public ResponseEntity<Cupom> atualizarCupom(@PathVariable UUID id, @RequestBody AtualizarCupomRequest request) {
         Cupom cupomAtualizado = atualizarCupomUseCase.atualizar(
@@ -69,7 +70,10 @@ public class AdminCupomController {
                 request.quantidadeTotal(),
                 request.dataInicio(),
                 request.dataFim(),
-                request.ativo()
+                request.ativo(),
+                request.usuariosIdsEspecificos(),
+                request.produtosIdsEspecificos(),
+                request.usoUnico()
         );
         return ResponseEntity.ok(cupomAtualizado);
     }

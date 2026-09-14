@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,7 +29,10 @@ public class AtualizarCupomUseCase {
                            Integer quantidadeTotal,
                            OffsetDateTime dataInicio,
                            OffsetDateTime dataFim,
-                           Boolean ativo) {
+                           Boolean ativo,
+                           List<UUID> usuariosIdsEspecificos, // 👈 Novo
+                           List<UUID> produtosIdsEspecificos, // 👈 Novo
+                           Boolean usoUnico) {                // 👈 Novo
 
         // 1. Buscar cupom existente
         Cupom cupom = cupomRepository.findById(cupomId)
@@ -38,7 +43,7 @@ public class AtualizarCupomUseCase {
             throw new IllegalArgumentException("Já existe outro cupom com este código.");
         }
 
-        // 3. Atualizar campos
+        // 3. Atualizar campos básicos
         if (codigo != null) cupom.setCodigo(codigo);
         if (descricao != null) cupom.setDescricao(descricao);
         if (tipo != null) cupom.setTipo(tipo.toLowerCase());
@@ -48,10 +53,20 @@ public class AtualizarCupomUseCase {
         if (dataInicio != null) cupom.setDataInicio(dataInicio);
         if (dataFim != null) cupom.setDataFim(dataFim);
         if (ativo != null) cupom.setAtivo(ativo);
+        if (usoUnico != null) cupom.setUsoUnico(usoUnico);
+
+        // 4. Atualizar as listas (Se vier nulo, ignora. Se vier lista vazia, limpa as restrições)
+        if (usuariosIdsEspecificos != null) {
+            cupom.setUsuariosIdsEspecificos(new HashSet<>(usuariosIdsEspecificos));
+        }
+
+        if (produtosIdsEspecificos != null) {
+            cupom.setProdutosIdsEspecificos(new HashSet<>(produtosIdsEspecificos));
+        }
 
         cupom.setAtualizadoEm(OffsetDateTime.now());
 
-        // 4. Persistir alterações
+        // 5. Persistir alterações
         return cupomRepository.save(cupom);
     }
 }
