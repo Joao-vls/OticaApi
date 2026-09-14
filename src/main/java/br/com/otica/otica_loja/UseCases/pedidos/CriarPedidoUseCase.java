@@ -81,21 +81,58 @@ public class CriarPedidoUseCase {
         // 4. Aplicar cupom (se houver)
         BigDecimal desconto = BigDecimal.ZERO;
         Cupom cupom = null;
+
         if (codigoCupom != null && !codigoCupom.isBlank()) {
-            cupom = cupomRepository.findByCodigo(codigoCupom)
+            // 1. Busca o cupom
+            Cupom cupomEncontrado = cupomRepository.findByCodigo(codigoCupom)
                     .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado."));
 
-            switch (cupom.getTipo().toLowerCase()) {
-                case "percentual":
-                    desconto = subtotal.multiply(cupom.getValor().divide(BigDecimal.valueOf(100)));
-                    break;
-                case "fixo":
-                    desconto = cupom.getValor();
-                    break;
-                case "frete":
-                    desconto = valorFrete.min(cupom.getValor());
-                    break;
+            // Validações de segurança do cupom no momento do fechamento
+            if (!cupomEncontrado.getAtivo()) {
+                throw new IllegalArgumentException("Este cupom está inativo ou expirado.");
             }
+            if (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal()) {
+                throw new IllegalArgumentException("O limite de usos para este cupom já foi atingido.");
+            }
+
+            // Validação de Usuários Específicos
+            if (cupomEncontrado.getUsuariosIdsEspecificos() != null && !cupomEncontrado.getUsuariosIdsEspecificos().isEmpty()) {
+                if (!cupomEncontrado.getUsuariosIdsEspecificos().contains(usuarioId)) {
+                    throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
+                }
+            }
+
+            // Validação de Produtos Específicos no Carrinho
+            if (cupomEncontrado.getProdutosIdsEspecificos() != null && !cupomEncontrado.getProdutosIdsEspecificos().isEmpty()) {
+                List<UUID> produtosIdsNoCarrinho = itensCarrinho.stream()
+                        .map(item -> item.getVariante().getId())
+                        .toList();
+
+                boolean temProdutoValido = produtosIdsNoCarrinho.stream()
+                        .anyMatch(id -> cupomEncontrado.getProdutosIdsEspecificos().contains(id));
+
+                if (!temProdutoValido) {
+                    throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
+                }
+            }
+
+            // Cálculo do Desconto
+            desconto = switch (cupomEncontrado.getTipo().toLowerCase()) {
+                case "percentual" -> subtotal.multiply(cupomEncontrado.getValor().divide(BigDecimal.valueOf(100)));
+                case "fixo" -> cupomEncontrado.getValor();
+                case "frete" -> valorFrete.min(cupomEncontrado.getValor());
+                default -> desconto;
+            };
+
+            // ATUALIZAÇÃO DO USO DO CUPOM (Incrementa +1 e inativa se for uso único)
+            cupomEncontrado.setQuantidadeUtilizada(cupomEncontrado.getQuantidadeUtilizada() + 1);
+            if (Boolean.TRUE.equals(cupomEncontrado.getUsoUnico()) ||
+                    (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal())) {
+                cupomEncontrado.setAtivo(false);
+            }
+
+            // Atribui à variável final/efetivamente final que vai para o pedido
+            cupom = cupomRepository.save(cupomEncontrado);
         }
 
         // 5. Calcular total

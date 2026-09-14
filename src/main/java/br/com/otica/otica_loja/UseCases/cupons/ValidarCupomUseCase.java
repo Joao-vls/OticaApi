@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ValidarCupomUseCase {
@@ -15,39 +17,56 @@ public class ValidarCupomUseCase {
     private CupomRepository cupomRepository;
 
     /**
-     * Valida um cupom pelo código e valor do pedido.
+     * Sobrecarga para validação simples (ex: Painel Admin)
      */
     public Cupom validar(String codigo, BigDecimal valorPedido) {
-        Cupom cupom = cupomRepository.findByCodigo(codigo)
-                .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado."));
+        return validar(codigo, valorPedido, null, null);
+    }
 
-        // 1. Verificar se está ativo
+    /**
+     * Valida um cupom pelo código, valor do pedido, usuário e produtos no carrinho.
+     */
+    public Cupom validar(String codigo, BigDecimal valorPedido, UUID usuarioId, List<UUID> produtosIds) {
+        Cupom cupom = cupomRepository.findByCodigo(codigo)
+                .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado ou código inválido."));
+
         if (!cupom.getAtivo()) {
-            throw new IllegalArgumentException("Cupom inativo.");
+            throw new IllegalArgumentException("Este cupom está inativo ou expirado.");
         }
 
-        // 2. Verificar período de validade
         OffsetDateTime agora = OffsetDateTime.now();
         if (cupom.getDataInicio() != null && agora.isBefore(cupom.getDataInicio())) {
-            throw new IllegalArgumentException("Cupom ainda não está válido.");
+            throw new IllegalArgumentException("Este cupom ainda não é válido.");
         }
         if (cupom.getDataFim() != null && agora.isAfter(cupom.getDataFim())) {
-            throw new IllegalArgumentException("Cupom expirado.");
+            throw new IllegalArgumentException("Este cupom já expirou.");
         }
 
-        // 3. Verificar quantidade disponível
-        if (cupom.getQuantidadeTotal() != null &&
-                cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal()) {
-            throw new IllegalArgumentException("Cupom já foi totalmente utilizado.");
+        if (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal()) {
+            throw new IllegalArgumentException("O limite de usos deste cupom já foi atingido.");
         }
 
-        // 4. Verificar valor mínimo do pedido
-        if (cupom.getValorMinimoPedido() != null &&
-                valorPedido.compareTo(cupom.getValorMinimoPedido()) < 0) {
-            throw new IllegalArgumentException("Valor mínimo do pedido não atingido.");
+        if (cupom.getValorMinimoPedido() != null && valorPedido.compareTo(cupom.getValorMinimoPedido()) < 0) {
+            throw new IllegalArgumentException("O valor mínimo para usar este cupom é R$ " + cupom.getValorMinimoPedido());
         }
 
-        // Se passou em todas as validações, retorna o cupom válido
+        // Validação de Usuários Específicos (Ignora se usuarioId for null, ex: no admin)
+        if (usuarioId != null && cupom.getUsuariosIdsEspecificos() != null && !cupom.getUsuariosIdsEspecificos().isEmpty()) {
+            if (!cupom.getUsuariosIdsEspecificos().contains(usuarioId)) {
+                throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
+            }
+        }
+
+        // Validação de Produtos Específicos (Ignora se produtosIds for null/vazio)
+        if (produtosIds != null && !produtosIds.isEmpty() && cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
+            boolean temProdutoValido = produtosIds.stream()
+                    .anyMatch(id -> cupom.getProdutosIdsEspecificos().contains(id));
+
+            if (!temProdutoValido) {
+                throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
+            }
+        }
+
         return cupom;
     }
 }
