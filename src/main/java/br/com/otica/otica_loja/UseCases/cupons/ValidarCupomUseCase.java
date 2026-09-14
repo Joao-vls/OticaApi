@@ -2,6 +2,7 @@ package br.com.otica.otica_loja.UseCases.cupons;
 
 import br.com.otica.otica_loja.Entity.Comercial.Cupom;
 import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
+import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository; // 👈 Import necessário
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,9 @@ public class ValidarCupomUseCase {
 
     @Autowired
     private CupomRepository cupomRepository;
+
+    @Autowired
+    private ProdutoVarianteRepository produtoVarianteRepository; // 👈 Injetado para buscar variantes se necessário
 
     /**
      * Sobrecarga para validação simples (ex: Painel Admin)
@@ -57,10 +61,21 @@ public class ValidarCupomUseCase {
             }
         }
 
-        // Validação de Produtos Específicos (Ignora se produtosIds for null/vazio)
+        // Validação de Produtos Específicos (Suporta ID de Produto Pai ou de Variante)
         if (produtosIds != null && !produtosIds.isEmpty() && cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
             boolean temProdutoValido = produtosIds.stream()
-                    .anyMatch(id -> cupom.getProdutosIdsEspecificos().contains(id));
+                    .anyMatch(idCarrinho -> {
+                        // 1. Verifica se o ID bate diretamente com o produto restrito
+                        if (cupom.getProdutosIdsEspecificos().contains(idCarrinho)) {
+                            return true;
+                        }
+
+                        // 2. Se não bateu direto, checa se é o ID de uma variante cujo produto pai está no cupom
+                        return produtoVarianteRepository.findById(idCarrinho)
+                                .map(variante -> variante.getProduto() != null &&
+                                        cupom.getProdutosIdsEspecificos().contains(variante.getProduto().getId()))
+                                .orElse(false);
+                    });
 
             if (!temProdutoValido) {
                 throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
