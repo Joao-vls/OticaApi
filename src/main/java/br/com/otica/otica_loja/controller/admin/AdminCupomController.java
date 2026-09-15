@@ -36,7 +36,6 @@ public class AdminCupomController {
     @Autowired
     private ListarCuponsUseCase listarCuponsUseCase;
 
-    // 1. Criar um novo cupom
     @PostMapping
     public ResponseEntity<Cupom> criarCupom(@RequestBody CriarCupomRequest request) {
         Cupom novoCupom = criarCupomUseCase.criar(
@@ -45,20 +44,17 @@ public class AdminCupomController {
                 request.tipo(),
                 request.valor(),
                 request.valorMinimoPedido(),
-                request.limiteItensPorPedido(),
                 request.quantidadeTotal(),
+                request.limiteItensPorPedido(), // 👈 AGORA O LIMITE É SALVO NO BANCO!
                 request.dataInicio(),
                 request.dataFim(),
                 request.usuariosIdsEspecificos(),
                 request.produtosIdsEspecificos(),
                 request.usoUnico()
-
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(novoCupom);
     }
 
-
-// 2. Atualizar um cupom existente
     @PutMapping("/{id}")
     public ResponseEntity<Cupom> atualizarCupom(@PathVariable UUID id, @RequestBody AtualizarCupomRequest request) {
         Cupom cupomAtualizado = atualizarCupomUseCase.atualizar(
@@ -69,7 +65,7 @@ public class AdminCupomController {
                 request.valor(),
                 request.valorMinimoPedido(),
                 request.quantidadeTotal(),
-                request.limiteItensPorPedido(),
+                request.limiteItensPorPedido(), // 👈 AGORA O LIMITE É ATUALIZADO!
                 request.dataInicio(),
                 request.dataFim(),
                 request.ativo(),
@@ -80,25 +76,24 @@ public class AdminCupomController {
         return ResponseEntity.ok(cupomAtualizado);
     }
 
-    // 3. Deletar definitivamente um cupom (Hard Delete)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarCupom(@PathVariable UUID id) {
         excluirCupomUseCase.excluir(id);
         return ResponseEntity.noContent().build();
     }
+
     @GetMapping
     public ResponseEntity<List<Cupom>> listarTodos() {
         List<Cupom> cupons = listarCuponsUseCase.listarTodos();
         return ResponseEntity.ok(cupons);
     }
-    // 4. Apenas Validar as regras do cupom sem computar uso
+
     @GetMapping("/validar")
     public ResponseEntity<Cupom> validarCupom(@RequestParam String codigo, @RequestParam BigDecimal valorPedido) {
         Cupom cupom = validarCupomUseCase.validar(codigo, valorPedido);
         return ResponseEntity.ok(cupom);
     }
 
-    // 5. Aplicar o cupom (Processa as regras de desconto e adiciona +1 no uso)
     @PostMapping("/aplicar")
     public ResponseEntity<BigDecimal> aplicarCupom(@RequestBody AplicarCupomRequest request) {
         BigDecimal valorFinal = aplicarCupomUseCase.aplicar(
