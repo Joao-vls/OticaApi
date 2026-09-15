@@ -2,10 +2,12 @@ package br.com.otica.otica_loja.UseCases.cupons;
 
 import br.com.otica.otica_loja.Entity.Comercial.Cupom;
 import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
+import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -14,6 +16,9 @@ public class AplicarCupomUseCase {
 
     @Autowired
     private CupomRepository cupomRepository;
+
+    @Autowired
+    private ProdutoVarianteRepository produtoVarianteRepository;
 
     /**
      * Aplica o cupom, validando todas as regras (limite, usuário, produto).
@@ -34,7 +39,6 @@ public class AplicarCupomUseCase {
             throw new IllegalArgumentException("O limite de usos para este cupom já foi atingido.");
         }
 
-
         // 3. Validação de Usuários Específicos
         if (cupom.getUsuariosIdsEspecificos() != null && !cupom.getUsuariosIdsEspecificos().isEmpty()) {
             if (!cupom.getUsuariosIdsEspecificos().contains(usuarioRequisitanteId)) {
@@ -42,29 +46,38 @@ public class AplicarCupomUseCase {
             }
         }
 
-        // 4. Validação de Produtos Específicos
+        // 4. Validação de Produtos Específicos (Incluindo checagem de Variante)
         if (cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
             if (produtosNoPedidoIds == null || produtosNoPedidoIds.isEmpty()) {
                 throw new IllegalArgumentException("Nenhum produto válido no carrinho para este cupom.");
             }
 
-            // Verifica se ALGUM produto do pedido está na lista de produtos permitidos pelo cupom
+            // Verifica se ALGUM produto do pedido bate com o cupom (ID direto ou produto pai da variante)
             boolean temProdutoValido = produtosNoPedidoIds.stream()
-                    .anyMatch(id -> cupom.getProdutosIdsEspecificos().contains(id));
+                    .anyMatch(idCarrinho -> {
+                        if (cupom.getProdutosIdsEspecificos().contains(idCarrinho)) return true;
+
+                        return produtoVarianteRepository.findById(idCarrinho)
+                                .map(variante -> variante.getProduto() != null &&
+                                        cupom.getProdutosIdsEspecificos().contains(variante.getProduto().getId()))
+                                .orElse(false);
+                    });
 
             if (!temProdutoValido) {
                 throw new IllegalArgumentException("Este cupom só é válido para produtos específicos que não estão no carrinho.");
             }
         }
-        // 5. Cálculo do Desconto
+
+        // 5. Cálculo do Desconto SEGURO (Prevenindo ArithmeticException)
         BigDecimal desconto = BigDecimal.ZERO;
 
         switch (cupom.getTipo().toLowerCase()) {
             case "percentual":
-                desconto = valorPedido.multiply(cupom.getValor().divide(BigDecimal.valueOf(100)));
+                desconto = valorPedido.multiply(cupom.getValor())
+                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
                 break;
             case "fixo":
-                desconto = cupom.getValor();
+                desconto = cupom.getValor().min(valorPedido);
                 break;
             case "frete":
                 desconto = valorFrete.min(cupom.getValor());

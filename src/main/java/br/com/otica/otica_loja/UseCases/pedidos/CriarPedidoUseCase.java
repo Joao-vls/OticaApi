@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -73,21 +74,19 @@ public class CriarPedidoUseCase {
         Endereco endereco = enderecoRepository.findByUsuarioIdAndIsDefaultTrue(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Endereço padrão não encontrado."));
 
-        // 3. Calcular subtotal
+        // 3. Calcular subtotal de todos os itens
         BigDecimal subtotal = itensCarrinho.stream()
                 .map(item -> item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 4. Aplicar cupom (se houver)
+        // 4. Aplicar cupom (se houver) e calcular o desconto com base no subtotal elegível
         BigDecimal desconto = BigDecimal.ZERO;
         Cupom cupom = null;
 
         if (codigoCupom != null && !codigoCupom.isBlank()) {
-            // 1. Busca o cupom
             Cupom cupomEncontrado = cupomRepository.findByCodigo(codigoCupom)
                     .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado."));
 
-            // Validações de segurança do cupom no momento do fechamento
             if (!cupomEncontrado.getAtivo()) {
                 throw new IllegalArgumentException("Este cupom está inativo ou expirado.");
             }
@@ -95,47 +94,81 @@ public class CriarPedidoUseCase {
                 throw new IllegalArgumentException("O limite de usos para este cupom já foi atingido.");
             }
 
-            // Validação de Usuários Específicos
             if (cupomEncontrado.getUsuariosIdsEspecificos() != null && !cupomEncontrado.getUsuariosIdsEspecificos().isEmpty()) {
                 if (!cupomEncontrado.getUsuariosIdsEspecificos().contains(usuarioId)) {
                     throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
                 }
             }
 
-            // Validação de Produtos Específicos no Carrinho
+            // 👇 LÓGICA DE LIMITE DE ITENS POR PEDIDO
+            BigDecimal subtotalElegivel = BigDecimal.ZERO;
+
+            // Pega o limite do cupom, ou infinito se não houver limite configurado
+            int limiteRestante = cupomEncontrado.getLimiteItensPorPedido() != null ? cupomEncontrado.getLimiteItensPorPedido() : Integer.MAX_VALUE;
+
             if (cupomEncontrado.getProdutosIdsEspecificos() != null && !cupomEncontrado.getProdutosIdsEspecificos().isEmpty()) {
-                List<UUID> produtosIdsNoCarrinho = itensCarrinho.stream()
-                        .map(item -> item.getVariante().getId())
+
+                // Filtra os itens do carrinho que pertencem a este cupom
+                List<CarrinhoItem> itensElegiveis = itensCarrinho.stream()
+                        .filter(item -> {
+                            UUID idProdutoPai = item.getVariante().getProduto() != null ? item.getVariante().getProduto().getId() : null;
+                            UUID idVariante = item.getVariante().getId();
+
+                            return cupomEncontrado.getProdutosIdsEspecificos().contains(idProdutoPai) ||
+                                    cupomEncontrado.getProdutosIdsEspecificos().contains(idVariante);
+                        })
+                        // Ordena do mais caro pro mais barato (beneficia o cliente no desconto)
+                        .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
 
-                boolean temProdutoValido = produtosIdsNoCarrinho.stream()
-                        .anyMatch(id -> cupomEncontrado.getProdutosIdsEspecificos().contains(id));
-
-                if (!temProdutoValido) {
+                if (itensElegiveis.isEmpty()) {
                     throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
+                }
+
+                // Soma o valor APENAS dos produtos elegíveis RESPEITANDO O LIMITE
+                for (CarrinhoItem item : itensElegiveis) {
+                    if (limiteRestante <= 0) break;
+
+                    int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
+                    subtotalElegivel = subtotalElegivel.add(item.getPrecoUnitario().multiply(BigDecimal.valueOf(qtdParaDesconto)));
+                    limiteRestante -= qtdParaDesconto;
+                }
+
+            } else {
+                // Se o cupom não tem produtos específicos, aplica o limite nos produtos gerais
+                List<CarrinhoItem> todosOrdenados = itensCarrinho.stream()
+                        .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
+                        .toList();
+
+                for (CarrinhoItem item : todosOrdenados) {
+                    if (limiteRestante <= 0) break;
+
+                    int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
+                    subtotalElegivel = subtotalElegivel.add(item.getPrecoUnitario().multiply(BigDecimal.valueOf(qtdParaDesconto)));
+                    limiteRestante -= qtdParaDesconto;
                 }
             }
 
-            // Cálculo do Desconto
+            // Calcula o Desconto USANDO O SUBTOTAL ELEGÍVEL DE FORMA SEGURA (Prevenindo ArithmeticException)
             desconto = switch (cupomEncontrado.getTipo().toLowerCase()) {
-                case "percentual" -> subtotal.multiply(cupomEncontrado.getValor().divide(BigDecimal.valueOf(100)));
-                case "fixo" -> cupomEncontrado.getValor();
+                case "percentual" -> subtotalElegivel.multiply(cupomEncontrado.getValor())
+                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                case "fixo" -> cupomEncontrado.getValor().min(subtotalElegivel); // Desconto não pode ser maior que o valor dos itens elegíveis
                 case "frete" -> valorFrete.min(cupomEncontrado.getValor());
-                default -> desconto;
+                default -> BigDecimal.ZERO;
             };
 
-            // ATUALIZAÇÃO DO USO DO CUPOM (Incrementa +1 e inativa se for uso único)
+            // Atualiza o uso do cupom
             cupomEncontrado.setQuantidadeUtilizada(cupomEncontrado.getQuantidadeUtilizada() + 1);
             if (Boolean.TRUE.equals(cupomEncontrado.getUsoUnico()) ||
                     (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal())) {
                 cupomEncontrado.setAtivo(false);
             }
 
-            // Atribui à variável final/efetivamente final que vai para o pedido
             cupom = cupomRepository.save(cupomEncontrado);
         }
 
-        // 5. Calcular total
+        // 5. Calcular total final do pedido
         BigDecimal total = subtotal.subtract(desconto).add(valorFrete);
         if (total.compareTo(BigDecimal.ZERO) < 0) {
             total = BigDecimal.ZERO;
@@ -186,7 +219,7 @@ public class CriarPedidoUseCase {
             movimentacao.setSaldoAnterior(saldoAnterior);
             movimentacao.setSaldoAtual(saldoAtual);
             movimentacao.setUsuarioId(usuarioId);
-            movimentacao.setObservacao("Reserva de estoque - Pedido a aguardar pagamento.");
+            movimentacao.setObservacao("Reserva de estoque - Pedido aguardando pagamento.");
             movimentacao.setCriadoEm(OffsetDateTime.now());
             estoqueMovimentacaoRepository.save(movimentacao);
 
@@ -224,7 +257,6 @@ public class CriarPedidoUseCase {
             pedidoItemRepository.save(pedidoItem);
         }
 
-        // A exclusão do carrinho foi removida daqui!
         return pedido;
     }
 }

@@ -35,6 +35,8 @@ public class Cupom {
     @Column(name = "valor_minimo_pedido", precision = 12, scale = 2)
     private BigDecimal valorMinimoPedido;
 
+    @Column(name = "limite_itens_por_pedido")
+    private Integer limiteItensPorPedido;
     // LIMITE DE USOS GERAL
     @Column(name = "quantidade_total")
     private Integer quantidadeTotal;
