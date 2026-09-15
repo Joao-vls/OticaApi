@@ -19,6 +19,7 @@ public class CriarCupomUseCase {
 
     public Cupom criar(String codigo, String descricao, String tipo, BigDecimal valor,
                        BigDecimal valorMinimoPedido, Integer quantidadeTotal,
+                       Integer limiteItensPorPedido,
                        OffsetDateTime dataInicio, OffsetDateTime dataFim,
                        List<UUID> usuariosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
                        List<UUID> produtosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
@@ -34,7 +35,7 @@ public class CriarCupomUseCase {
         cupom.setTipo(tipo.toLowerCase());
         cupom.setValor(valor);
         cupom.setValorMinimoPedido(valorMinimoPedido);
-
+        cupom.setLimiteItensPorPedido(limiteItensPorPedido);
         cupom.setQuantidadeTotal(quantidadeTotal);
         cupom.setQuantidadeUtilizada(0);
 

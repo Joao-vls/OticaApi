@@ -27,6 +27,7 @@ public class AtualizarCupomUseCase {
                            BigDecimal valor,
                            BigDecimal valorMinimoPedido,
                            Integer quantidadeTotal,
+                           Integer limiteItensPorPedido,
                            OffsetDateTime dataInicio,
                            OffsetDateTime dataFim,
                            Boolean ativo,
@@ -50,6 +51,7 @@ public class AtualizarCupomUseCase {
         if (valor != null) cupom.setValor(valor);
         if (valorMinimoPedido != null) cupom.setValorMinimoPedido(valorMinimoPedido);
         if (quantidadeTotal != null) cupom.setQuantidadeTotal(quantidadeTotal);
+        cupom.setLimiteItensPorPedido(limiteItensPorPedido);
         if (dataInicio != null) cupom.setDataInicio(dataInicio);
         if (dataFim != null) cupom.setDataFim(dataFim);
         if (ativo != null) cupom.setAtivo(ativo);
