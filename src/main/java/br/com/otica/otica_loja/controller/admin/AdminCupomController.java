@@ -45,11 +45,12 @@ public class AdminCupomController {
                 request.valor(),
                 request.valorMinimoPedido(),
                 request.quantidadeTotal(),
-                request.limiteItensPorPedido(), // 👈 AGORA O LIMITE É SALVO NO BANCO!
+                request.limiteItensPorPedido(),
                 request.dataInicio(),
                 request.dataFim(),
                 request.usuariosIdsEspecificos(),
                 request.produtosIdsEspecificos(),
+                request.categoriasIdsEspecificas(),
                 request.usoUnico()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(novoCupom);
@@ -65,12 +66,13 @@ public class AdminCupomController {
                 request.valor(),
                 request.valorMinimoPedido(),
                 request.quantidadeTotal(),
-                request.limiteItensPorPedido(), // 👈 AGORA O LIMITE É ATUALIZADO!
+                request.limiteItensPorPedido(),
                 request.dataInicio(),
                 request.dataFim(),
                 request.ativo(),
                 request.usuariosIdsEspecificos(),
                 request.produtosIdsEspecificos(),
+                request.categoriasIdsEspecificas(),
                 request.usoUnico()
         );
         return ResponseEntity.ok(cupomAtualizado);

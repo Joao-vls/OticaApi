@@ -16,5 +16,6 @@ public record CriarCupomRequest(
         OffsetDateTime dataFim,
         List<UUID> usuariosIdsEspecificos,
         List<UUID> produtosIdsEspecificos,
+        List<UUID> categoriasIdsEspecificas,
         Boolean usoUnico
 ) {}

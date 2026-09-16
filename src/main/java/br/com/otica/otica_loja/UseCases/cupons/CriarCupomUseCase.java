@@ -21,8 +21,9 @@ public class CriarCupomUseCase {
                        BigDecimal valorMinimoPedido, Integer quantidadeTotal,
                        Integer limiteItensPorPedido,
                        OffsetDateTime dataInicio, OffsetDateTime dataFim,
-                       List<UUID> usuariosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
-                       List<UUID> produtosIdsEspecificos, // 👈 Mudou de UUID para List<UUID>
+                       List<UUID> usuariosIdsEspecificos,
+                       List<UUID> produtosIdsEspecificos,
+                       List<UUID> categoriasIdsEspecificas, // 👈 NOVO PARÂMETRO
                        Boolean usoUnico) {
 
         if (cupomRepository.existsByCodigo(codigo)) {
@@ -39,12 +40,15 @@ public class CriarCupomUseCase {
         cupom.setQuantidadeTotal(quantidadeTotal);
         cupom.setQuantidadeUtilizada(0);
 
-        // Atribuindo as listas (Se vier nulo, a entidade já inicializou como HashSet vazio)
         if (usuariosIdsEspecificos != null) {
             cupom.setUsuariosIdsEspecificos(new HashSet<>(usuariosIdsEspecificos));
         }
         if (produtosIdsEspecificos != null) {
             cupom.setProdutosIdsEspecificos(new HashSet<>(produtosIdsEspecificos));
+        }
+        // 👇 SALVANDO AS CATEGORIAS NO BANCO
+        if (categoriasIdsEspecificas != null) {
+            cupom.setCategoriasIdsEspecificas(new HashSet<>(categoriasIdsEspecificas));
         }
 
         cupom.setUsoUnico(usoUnico != null ? usoUnico : false);

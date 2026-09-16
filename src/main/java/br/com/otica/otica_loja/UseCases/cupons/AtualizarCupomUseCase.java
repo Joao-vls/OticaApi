@@ -32,7 +32,8 @@ public class AtualizarCupomUseCase {
                            OffsetDateTime dataFim,
                            Boolean ativo,
                            List<UUID> usuariosIdsEspecificos, // 👈 Novo
-                           List<UUID> produtosIdsEspecificos, // 👈 Novo
+                           List<UUID> produtosIdsEspecificos,
+                           List<UUID> categoriasIdsEspecificas,
                            Boolean usoUnico) {                // 👈 Novo
 
         // 1. Buscar cupom existente
@@ -56,7 +57,9 @@ public class AtualizarCupomUseCase {
         if (dataFim != null) cupom.setDataFim(dataFim);
         if (ativo != null) cupom.setAtivo(ativo);
         if (usoUnico != null) cupom.setUsoUnico(usoUnico);
-
+        if (categoriasIdsEspecificas != null) {
+            cupom.setCategoriasIdsEspecificas(new HashSet<>(categoriasIdsEspecificas));
+        }
         // 4. Atualizar as listas (Se vier nulo, ignora. Se vier lista vazia, limpa as restrições)
         if (usuariosIdsEspecificos != null) {
             cupom.setUsuariosIdsEspecificos(new HashSet<>(usuariosIdsEspecificos));

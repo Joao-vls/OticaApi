@@ -18,5 +18,6 @@ public record AtualizarCupomRequest(
         Boolean ativo,
         List<UUID> usuariosIdsEspecificos,
         List<UUID> produtosIdsEspecificos,
+        List<UUID> categoriasIdsEspecificas,
         Boolean usoUnico
 ) {}

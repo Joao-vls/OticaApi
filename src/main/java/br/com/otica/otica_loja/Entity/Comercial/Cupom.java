@@ -27,7 +27,7 @@ public class Cupom {
     private String descricao;
 
     @Column(nullable = false, length = 20)
-    private String tipo; // percentual, fixo, frete
+    private String tipo;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal valor;
@@ -37,14 +37,13 @@ public class Cupom {
 
     @Column(name = "limite_itens_por_pedido")
     private Integer limiteItensPorPedido;
-    // LIMITE DE USOS GERAL
+
     @Column(name = "quantidade_total")
     private Integer quantidadeTotal;
 
     @Column(name = "quantidade_utilizada", nullable = false)
     private Integer quantidadeUtilizada = 0;
 
-    // NOVOS CAMPOS ADICIONADOS 👇
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "cupom_usuarios", schema = "loja", joinColumns = @JoinColumn(name = "cupom_id"))
     @Column(name = "usuario_id")
@@ -55,10 +54,15 @@ public class Cupom {
     @Column(name = "produto_id")
     private Set<UUID> produtosIdsEspecificos = new HashSet<>();
 
+    // 👇 NOVO CAMPO ADICIONADO: Categorias Específicas
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "cupom_categorias", schema = "loja", joinColumns = @JoinColumn(name = "cupom_id"))
+    @Column(name = "categoria_id")
+    private Set<UUID> categoriasIdsEspecificas = new HashSet<>();
+    // ------------------------- 👆
 
     @Column(name = "uso_unico", nullable = false)
-    private Boolean usoUnico = false; // Se true, o cupom é inativado após 1 uso (independente da quantidade total)
-    // ------------------------- 👆
+    private Boolean usoUnico = false;
 
     @Column(name = "data_inicio")
     private OffsetDateTime dataInicio;
