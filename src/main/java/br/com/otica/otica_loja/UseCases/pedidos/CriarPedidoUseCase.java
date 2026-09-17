@@ -70,16 +70,40 @@ public class CriarPedidoUseCase {
             throw new IllegalArgumentException("Carrinho está vazio.");
         }
 
-        // 2. Buscar endereço padrão
+        // =================================================================================
+        // 2. VALIDAÇÃO ANTECIPADA DE ESTOQUE (FAIL-FAST)
+        // Fazemos isso ANTES de salvar qualquer coisa no banco. Se falhar aqui, a execução
+        // para imediatamente e nenhum pedido "Aguardando Pagamento" será gerado.
+        // =================================================================================
+        for (CarrinhoItem itemCarrinho : itensCarrinho) {
+            ProdutoVariante variante = itemCarrinho.getVariante();
+            Produto produto = variante.getProduto();
+            Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
+
+            if (produto != null && !produto.getAtivo()) {
+                throw new IllegalArgumentException(String.format("O produto '%s' não está mais disponível para venda.", produto.getNome()));
+            }
+
+            if (!variante.getAtivo()) {
+                throw new IllegalArgumentException(String.format("A variação '%s' não está mais disponível.", variante.getNome()));
+            }
+
+            if (variante.getStock() < quantidadeSolicitada) {
+                throw new IllegalArgumentException(String.format("Estoque insuficiente para o produto: %s (SKU: %s). Disponível: %d",
+                        variante.getNome(), variante.getSku(), variante.getStock()));
+            }
+        }
+
+        // 3. Buscar endereço padrão
         Endereco endereco = enderecoRepository.findByUsuarioIdAndIsDefaultTrue(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Endereço padrão não encontrado."));
 
-        // 3. Calcular subtotal de todos os itens
+        // 4. Calcular subtotal de todos os itens
         BigDecimal subtotal = itensCarrinho.stream()
                 .map(item -> item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 4. Aplicar cupom (se houver) e calcular o desconto com base no subtotal elegível
+        // 5. Aplicar cupom (se houver)
         BigDecimal desconto = BigDecimal.ZERO;
         Cupom cupom = null;
 
@@ -100,15 +124,10 @@ public class CriarPedidoUseCase {
                 }
             }
 
-            // 👇 LÓGICA DE LIMITE DE ITENS POR PEDIDO
             BigDecimal subtotalElegivel = BigDecimal.ZERO;
-
-            // Pega o limite do cupom, ou infinito se não houver limite configurado
             int limiteRestante = cupomEncontrado.getLimiteItensPorPedido() != null ? cupomEncontrado.getLimiteItensPorPedido() : Integer.MAX_VALUE;
 
             if (cupomEncontrado.getProdutosIdsEspecificos() != null && !cupomEncontrado.getProdutosIdsEspecificos().isEmpty()) {
-
-                // Filtra os itens do carrinho que pertencem a este cupom
                 List<CarrinhoItem> itensElegiveis = itensCarrinho.stream()
                         .filter(item -> {
                             UUID idProdutoPai = item.getVariante().getProduto() != null ? item.getVariante().getProduto().getId() : null;
@@ -117,7 +136,6 @@ public class CriarPedidoUseCase {
                             return cupomEncontrado.getProdutosIdsEspecificos().contains(idProdutoPai) ||
                                     cupomEncontrado.getProdutosIdsEspecificos().contains(idVariante);
                         })
-                        // Ordena do mais caro pro mais barato (beneficia o cliente no desconto)
                         .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
 
@@ -125,7 +143,6 @@ public class CriarPedidoUseCase {
                     throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
                 }
 
-                // Soma o valor APENAS dos produtos elegíveis RESPEITANDO O LIMITE
                 for (CarrinhoItem item : itensElegiveis) {
                     if (limiteRestante <= 0) break;
 
@@ -135,7 +152,6 @@ public class CriarPedidoUseCase {
                 }
 
             } else {
-                // Se o cupom não tem produtos específicos, aplica o limite nos produtos gerais
                 List<CarrinhoItem> todosOrdenados = itensCarrinho.stream()
                         .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
@@ -149,16 +165,14 @@ public class CriarPedidoUseCase {
                 }
             }
 
-            // Calcula o Desconto USANDO O SUBTOTAL ELEGÍVEL DE FORMA SEGURA (Prevenindo ArithmeticException)
             desconto = switch (cupomEncontrado.getTipo().toLowerCase()) {
                 case "percentual" -> subtotalElegivel.multiply(cupomEncontrado.getValor())
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-                case "fixo" -> cupomEncontrado.getValor().min(subtotalElegivel); // Desconto não pode ser maior que o valor dos itens elegíveis
+                case "fixo" -> cupomEncontrado.getValor().min(subtotalElegivel);
                 case "frete" -> valorFrete.min(cupomEncontrado.getValor());
                 default -> BigDecimal.ZERO;
             };
 
-            // Atualiza o uso do cupom
             cupomEncontrado.setQuantidadeUtilizada(cupomEncontrado.getQuantidadeUtilizada() + 1);
             if (Boolean.TRUE.equals(cupomEncontrado.getUsoUnico()) ||
                     (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal())) {
@@ -168,13 +182,13 @@ public class CriarPedidoUseCase {
             cupom = cupomRepository.save(cupomEncontrado);
         }
 
-        // 5. Calcular total final do pedido
+        // 6. Calcular total final do pedido
         BigDecimal total = subtotal.subtract(desconto).add(valorFrete);
         if (total.compareTo(BigDecimal.ZERO) < 0) {
             total = BigDecimal.ZERO;
         }
 
-        // 6. Criar pedido
+        // 7. Criar pedido
         Pedido pedido = new Pedido();
         pedido.setUsuarioId(usuarioId);
         pedido.setEnderecoId(endereco.getId());
@@ -189,23 +203,12 @@ public class CriarPedidoUseCase {
 
         pedido = pedidoRepository.save(pedido);
 
-        // 7. Criar itens do pedido e RESERVAR ESTOQUE
+        // 8. Criar itens do pedido, reduzir estoque e salvar movimentação
+        // Como o estoque já foi validado no passo 2, este loop ocorrerá sem surpresas.
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
             ProdutoVariante variante = itemCarrinho.getVariante();
             Produto produto = variante.getProduto();
             Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
-
-            if (produto != null && !produto.getAtivo()) {
-                throw new IllegalArgumentException(String.format("O produto '%s' não está mais disponível para venda.", produto.getNome()));
-            }
-
-            if (!variante.getAtivo()) {
-                throw new IllegalArgumentException(String.format("A variação '%s' do produto '%s' não está mais disponível.", variante.getNome(), produto != null ? produto.getNome() : ""));
-            }
-
-            if (variante.getStock() < quantidadeSolicitada) {
-                throw new IllegalArgumentException(String.format("Estoque insuficiente para o produto: %s (SKU: %s). Disponível: %d", variante.getNome(), variante.getSku(), variante.getStock()));
-            }
 
             Integer saldoAnterior = variante.getStock();
             Integer saldoAtual = saldoAnterior - quantidadeSolicitada;
