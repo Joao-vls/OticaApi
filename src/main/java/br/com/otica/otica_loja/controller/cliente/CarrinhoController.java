@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.controller.cliente;
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Entity.Carrinho.Carrinho;
 import br.com.otica.otica_loja.Entity.Carrinho.CarrinhoItem;
+import br.com.otica.otica_loja.Entity.Comercial.Cupom;
 import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoItemRepository;
 import br.com.otica.otica_loja.UseCases.carrinho.*;
 import br.com.otica.otica_loja.dto.AdicionarItemDTO;
@@ -68,7 +69,33 @@ public class CarrinhoController {
                 .map(CarrinhoItemResponseDTO::fromEntity)
                 .toList();
 
-        return ResponseEntity.ok(CarrinhoResponseDTO.fromEntity(carrinho, itensDTO));
+        // 🚀 Monta um Map de resposta injetando os detalhes do Cupom que o Angular precisa
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", carrinho.getId());
+        response.put("usuarioId", carrinho.getUsuarioId());
+        response.put("itens", itensDTO);
+
+        if (carrinho.getCupom() != null) {
+            Cupom cupom = carrinho.getCupom();
+            Map<String, Object> cupomMap = new java.util.HashMap<>();
+            cupomMap.put("codigo", cupom.getCodigo());
+            cupomMap.put("tipo", cupom.getTipo());
+            cupomMap.put("valor", cupom.getValor());
+            cupomMap.put("limiteItensPorPedido", cupom.getLimiteItensPorPedido() != null ? cupom.getLimiteItensPorPedido() : 999999);
+
+            // Extrai os IDs elegíveis para o frontend aplicar o desconto no item certo
+            java.util.Set<UUID> produtosIds = new java.util.HashSet<>();
+            if (cupom.getProdutosIdsEspecificos() != null) {
+                produtosIds.addAll(cupom.getProdutosIdsEspecificos());
+            }
+            cupomMap.put("produtosIdsEspecificos", produtosIds);
+
+            response.put("cupom", cupomMap);
+        } else {
+            response.put("cupom", null);
+        }
+
+        return ResponseEntity.ok(response);
     }
 
     /**
