@@ -39,9 +39,9 @@ public class ClientePedidoController {
         if (usuarioLogado == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
         try {
+            // 👇 Ajustado: Removido o dto.codigoCupom() para sincronizar com o novo UseCase
             Pedido pedido = criarPedidoUseCase.criar(
                     usuarioLogado.getId(),
-                    dto.codigoCupom(),
                     dto.valorFrete() != null ? dto.valorFrete() : java.math.BigDecimal.ZERO,
                     dto.observacoes()
             );
