@@ -45,6 +45,12 @@ public class CarrinhoController {
     @Autowired
     private CarrinhoItemRepository carrinhoItemRepository;
 
+    @Autowired
+    private AplicarCupomCarrinhoUseCase aplicarCupomCarrinhoUseCase;
+
+    @Autowired
+    private RemoverCupomCarrinhoUseCase removerCupomCarrinhoUseCase;
+
     /**
      * Obtém o carrinho do cliente autenticado.
      * Caso o carrinho não exista, gera um novo automaticamente.
@@ -170,6 +176,36 @@ public class CarrinhoController {
             return buscarCarrinhoUseCase.buscar(usuarioId);
         } catch (IllegalArgumentException e) {
             return criarCarrinhoUseCase.criar(usuarioId);
+        }
+    }
+    @PostMapping("/cupom")
+    public ResponseEntity<?> aplicarCupom(@AuthenticationPrincipal Usuario usuarioLogado,
+                                          @RequestBody Map<String, String> request) {
+        if (usuarioLogado == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        try {
+            String codigo = request.get("codigo");
+            aplicarCupomCarrinhoUseCase.aplicar(usuarioLogado.getId(), codigo);
+            // Retorna o carrinho atualizado para o front-end recalcular os valores
+            return obterCarrinho(usuarioLogado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Remove o cupom do carrinho.
+     */
+    @DeleteMapping("/cupom")
+    public ResponseEntity<?> removerCupom(@AuthenticationPrincipal Usuario usuarioLogado) {
+        if (usuarioLogado == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        try {
+            removerCupomCarrinhoUseCase.remover(usuarioLogado.getId());
+            // Retorna o carrinho atualizado para o front-end
+            return obterCarrinho(usuarioLogado);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 }

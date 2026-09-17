@@ -59,7 +59,9 @@ public class CriarPedidoUseCase {
     private EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
 
     @Transactional
-    public Pedido criar(UUID usuarioId, String codigoCupom, BigDecimal valorFrete, String observacoes) {
+    // 👇 REMOVIDO o 'String codigoCupom' dos parâmetros.
+    public Pedido criar(UUID usuarioId, BigDecimal valorFrete, String observacoes) {
+
         // 1. Buscar carrinho
         Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Carrinho não encontrado."));
@@ -70,11 +72,7 @@ public class CriarPedidoUseCase {
             throw new IllegalArgumentException("Carrinho está vazio.");
         }
 
-        // =================================================================================
         // 2. VALIDAÇÃO ANTECIPADA DE ESTOQUE (FAIL-FAST)
-        // Fazemos isso ANTES de salvar qualquer coisa no banco. Se falhar aqui, a execução
-        // para imediatamente e nenhum pedido "Aguardando Pagamento" será gerado.
-        // =================================================================================
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
             ProdutoVariante variante = itemCarrinho.getVariante();
             Produto produto = variante.getProduto();
@@ -103,49 +101,52 @@ public class CriarPedidoUseCase {
                 .map(item -> item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 5. Aplicar cupom (se houver)
+        // 5. Aplicar cupom (se houver no carrinho)
         BigDecimal desconto = BigDecimal.ZERO;
-        Cupom cupom = null;
 
-        if (codigoCupom != null && !codigoCupom.isBlank()) {
-            Cupom cupomEncontrado = cupomRepository.findByCodigo(codigoCupom)
-                    .orElseThrow(() -> new IllegalArgumentException("Cupom não encontrado."));
+        // 👇 Pega o cupom diretamente do banco de dados (Carrinho)
+        Cupom cupom = carrinho.getCupom();
 
-            if (!cupomEncontrado.getAtivo()) {
-                throw new IllegalArgumentException("Este cupom está inativo ou expirado.");
+        if (cupom != null) {
+            // Revalidações de segurança (O cupom pode ter expirado enquanto estava no carrinho)
+            if (!cupom.getAtivo()) {
+                throw new IllegalArgumentException("O cupom aplicado no carrinho está inativo ou expirado.");
             }
-            if (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal()) {
-                throw new IllegalArgumentException("O limite de usos para este cupom já foi atingido.");
+            if (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal()) {
+                throw new IllegalArgumentException("O limite de usos para o cupom aplicado já foi atingido.");
             }
-
-            if (cupomEncontrado.getUsuariosIdsEspecificos() != null && !cupomEncontrado.getUsuariosIdsEspecificos().isEmpty()) {
-                if (!cupomEncontrado.getUsuariosIdsEspecificos().contains(usuarioId)) {
+            if (cupom.getUsuariosIdsEspecificos() != null && !cupom.getUsuariosIdsEspecificos().isEmpty()) {
+                if (!cupom.getUsuariosIdsEspecificos().contains(usuarioId)) {
                     throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
                 }
             }
 
             BigDecimal subtotalElegivel = BigDecimal.ZERO;
-            int limiteRestante = cupomEncontrado.getLimiteItensPorPedido() != null ? cupomEncontrado.getLimiteItensPorPedido() : Integer.MAX_VALUE;
+            int limiteRestante = cupom.getLimiteItensPorPedido() != null ? cupom.getLimiteItensPorPedido() : Integer.MAX_VALUE;
 
-            if (cupomEncontrado.getProdutosIdsEspecificos() != null && !cupomEncontrado.getProdutosIdsEspecificos().isEmpty()) {
+            if (cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
+
+
+                final var produtosIdsEspecificos = cupom.getProdutosIdsEspecificos();
+
                 List<CarrinhoItem> itensElegiveis = itensCarrinho.stream()
                         .filter(item -> {
                             UUID idProdutoPai = item.getVariante().getProduto() != null ? item.getVariante().getProduto().getId() : null;
                             UUID idVariante = item.getVariante().getId();
 
-                            return cupomEncontrado.getProdutosIdsEspecificos().contains(idProdutoPai) ||
-                                    cupomEncontrado.getProdutosIdsEspecificos().contains(idVariante);
+
+                            return produtosIdsEspecificos.contains(idProdutoPai) ||
+                                    produtosIdsEspecificos.contains(idVariante);
                         })
                         .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
 
                 if (itensElegiveis.isEmpty()) {
-                    throw new IllegalArgumentException("Este cupom não é válido para os produtos no seu carrinho.");
+                    throw new IllegalArgumentException("O cupom no carrinho não é válido para os produtos atuais.");
                 }
 
                 for (CarrinhoItem item : itensElegiveis) {
                     if (limiteRestante <= 0) break;
-
                     int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
                     subtotalElegivel = subtotalElegivel.add(item.getPrecoUnitario().multiply(BigDecimal.valueOf(qtdParaDesconto)));
                     limiteRestante -= qtdParaDesconto;
@@ -158,28 +159,28 @@ public class CriarPedidoUseCase {
 
                 for (CarrinhoItem item : todosOrdenados) {
                     if (limiteRestante <= 0) break;
-
                     int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
                     subtotalElegivel = subtotalElegivel.add(item.getPrecoUnitario().multiply(BigDecimal.valueOf(qtdParaDesconto)));
                     limiteRestante -= qtdParaDesconto;
                 }
             }
 
-            desconto = switch (cupomEncontrado.getTipo().toLowerCase()) {
-                case "percentual" -> subtotalElegivel.multiply(cupomEncontrado.getValor())
+            desconto = switch (cupom.getTipo().toLowerCase()) {
+                case "percentual" -> subtotalElegivel.multiply(cupom.getValor())
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-                case "fixo" -> cupomEncontrado.getValor().min(subtotalElegivel);
-                case "frete" -> valorFrete.min(cupomEncontrado.getValor());
+                case "fixo" -> cupom.getValor().min(subtotalElegivel);
+                case "frete" -> valorFrete.min(cupom.getValor());
                 default -> BigDecimal.ZERO;
             };
 
-            cupomEncontrado.setQuantidadeUtilizada(cupomEncontrado.getQuantidadeUtilizada() + 1);
-            if (Boolean.TRUE.equals(cupomEncontrado.getUsoUnico()) ||
-                    (cupomEncontrado.getQuantidadeTotal() != null && cupomEncontrado.getQuantidadeUtilizada() >= cupomEncontrado.getQuantidadeTotal())) {
-                cupomEncontrado.setAtivo(false);
+            // Atualiza uso do cupom e desativa se for uso único
+            cupom.setQuantidadeUtilizada(cupom.getQuantidadeUtilizada() + 1);
+            if (Boolean.TRUE.equals(cupom.getUsoUnico()) ||
+                    (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal())) {
+                cupom.setAtivo(false);
             }
 
-            cupom = cupomRepository.save(cupomEncontrado);
+            cupom = cupomRepository.save(cupom);
         }
 
         // 6. Calcular total final do pedido
@@ -192,7 +193,7 @@ public class CriarPedidoUseCase {
         Pedido pedido = new Pedido();
         pedido.setUsuarioId(usuarioId);
         pedido.setEnderecoId(endereco.getId());
-        pedido.setCupom(cupom);
+        pedido.setCupom(cupom); // Associa o cupom
         pedido.setSubtotal(subtotal);
         pedido.setDesconto(desconto);
         pedido.setFrete(valorFrete);
@@ -204,7 +205,6 @@ public class CriarPedidoUseCase {
         pedido = pedidoRepository.save(pedido);
 
         // 8. Criar itens do pedido, reduzir estoque e salvar movimentação
-        // Como o estoque já foi validado no passo 2, este loop ocorrerá sem surpresas.
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
             ProdutoVariante variante = itemCarrinho.getVariante();
             Produto produto = variante.getProduto();

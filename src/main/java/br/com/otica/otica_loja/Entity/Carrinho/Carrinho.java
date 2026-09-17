@@ -1,5 +1,6 @@
 package br.com.otica.otica_loja.Entity.Carrinho;
 
+import br.com.otica.otica_loja.Entity.Comercial.Cupom;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,6 +26,10 @@ public class Carrinho {
     // ADICIONE ESTAS LINHAS AQUI 👇
     @OneToMany(mappedBy = "carrinho", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CarrinhoItem> itens = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cupom_id")
+    private Cupom cupom;
 
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
