@@ -3,10 +3,7 @@ package br.com.otica.otica_loja.controller.admin;
 import br.com.otica.otica_loja.Entity.Logistica.Envio;
 import br.com.otica.otica_loja.Entity.Logistica.EnvioEvento;
 import br.com.otica.otica_loja.UseCases.logistica.*;
-import br.com.otica.otica_loja.dto.AdicionarEventoRequest;
-import br.com.otica.otica_loja.dto.ConfirmarEntregaRequest;
-import br.com.otica.otica_loja.dto.CriarEnvioRequest;
-import br.com.otica.otica_loja.dto.EnvioResumoDTO;
+import br.com.otica.otica_loja.dto.*;
 import br.com.otica.otica_loja.enums.StatusPedido;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +18,7 @@ import java.util.UUID;
 @RequestMapping("/admin/logistica")
 @RequiredArgsConstructor
 public class AdminLogisticaController {
-
+    private final ListarPedidosPendentesLogisticaUseCase listarPedidosPendentesLogisticaUseCase;
     private final CriarEnvioUseCase criarEnvioUseCase;
     private final ConfirmarEntregaUseCase confirmarEntregaUseCase;
     private final AtualizarRastreamentoUseCase atualizarRastreamentoUseCase;
@@ -98,6 +95,13 @@ public class AdminLogisticaController {
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
     public ResponseEntity<List<EnvioResumoDTO>> listarEnviosPorStatus(@PathVariable StatusPedido status) {
         List<EnvioResumoDTO> lista = listarEnviosAdminUseCase.listarPorStatus(status);
+        return ResponseEntity.ok(lista);
+    }
+
+    @GetMapping("/pedidos-pendentes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
+    public ResponseEntity<List<PedidoPendenteLogisticaDTO>> listarPedidosParaSeparacao() {
+        List<PedidoPendenteLogisticaDTO> lista = listarPedidosPendentesLogisticaUseCase.executar();
         return ResponseEntity.ok(lista);
     }
 }
