@@ -27,13 +27,15 @@ public class ListarPedidosPendentesLogisticaUseCase {
             Usuario usuario = usuarioRepository.findById(pedido.getUsuarioId()).orElse(null);
             String clienteNome = usuario != null ? usuario.getNome() : "Desconhecido";
 
-
-            String clienteTelefone = usuario != null && usuario.getTelefone() != null
+            // Verifique se o método do seu usuário é getTelefone() ou getCelular()
+            // Estou usando getTelefone() aqui. Se for getCelular(), mude abaixo.
+            String clienteTelefone = (usuario != null && usuario.getTelefone() != null)
                     ? usuario.getTelefone() : "Não informado";
 
-            List<ItemResumoDTO> itensDTO = pedido.getItens().stream()
+            // MAPEIA OS ITENS CORRETAMENTE
+            List<ItemResumoDTO> itensDTO = pedido.getItens() != null ? pedido.getItens().stream()
                     .map(item -> new ItemResumoDTO(item.getNomeProduto(), item.getQuantidade()))
-                    .toList();
+                    .toList() : List.of(); // Evita NullPointerException se itens for null
 
             return new PedidoPendenteLogisticaDTO(
                     pedido.getId(),
