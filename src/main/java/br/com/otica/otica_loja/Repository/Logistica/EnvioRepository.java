@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.Repository.Logistica;
 import br.com.otica.otica_loja.Entity.Logistica.Envio;
 import br.com.otica.otica_loja.Entity.Logistica.Transportadora;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
+import br.com.otica.otica_loja.enums.StatusPedido;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -25,6 +26,8 @@ public interface EnvioRepository extends JpaRepository<Envio, UUID> {
 
     // Buscar envios enviados após uma data
     List<Envio> findByEnviadoEmAfter(OffsetDateTime data);
+
+    List<Envio> findByPedidoStatus(StatusPedido status);
 
     // Buscar envios entregues após uma data
     List<Envio> findByEntregueEmAfter(OffsetDateTime data);
