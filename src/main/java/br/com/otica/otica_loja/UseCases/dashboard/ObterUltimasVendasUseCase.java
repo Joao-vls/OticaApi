@@ -36,8 +36,13 @@ public class ObterUltimasVendasUseCase {
         // Ordena por data de criação (mais recentes primeiro)
         PageRequest pageRequest = PageRequest.of(0, limite, Sort.by(Sort.Direction.DESC, "criadoEm"));
 
-        // Status que representam "Pagaram" ou "Foram Entregues"
-        List<StatusPedido> statusValidos = Arrays.asList(StatusPedido.PAGO, StatusPedido.ENTREGUE);
+        // 🎯 AQUI FOI ATUALIZADO: Incluímos SEPARACAO e ENVIADO na lista de válidos
+        List<StatusPedido> statusValidos = Arrays.asList(
+                StatusPedido.PAGO,
+                StatusPedido.SEPARACAO,
+                StatusPedido.ENVIADO,
+                StatusPedido.ENTREGUE
+        );
 
         // Busca os pedidos usando o método que criaremos no PedidoRepository
         return pedidoRepository.findByStatusIn(statusValidos, pageRequest)
