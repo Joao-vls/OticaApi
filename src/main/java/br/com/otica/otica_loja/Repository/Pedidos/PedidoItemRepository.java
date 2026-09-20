@@ -62,7 +62,7 @@ public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
         FROM loja.pedidos p
         JOIN loja.pedido_itens i ON i.pedido_id = p.id
         WHERE EXTRACT(YEAR FROM p.criado_em) = :ano
-          AND p.status IN ('PAGO', 'ENTREGUE')
+          AND p.status IN ('PAGO', 'SEPARACAO', 'ENVIADO', 'ENTREGUE')
         GROUP BY CAST(p.criado_em AS DATE)
         ORDER BY data
         """, nativeQuery = true)
@@ -92,7 +92,6 @@ public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
         """, nativeQuery = true)
     List<UltimaVendaProjection> obterUltimasVendas(Pageable pageable);
 
-    // --- Seus métodos existentes de busca ---
 
     // Buscar itens de um pedido específico
     List<PedidoItem> findByPedido(Pedido pedido);
