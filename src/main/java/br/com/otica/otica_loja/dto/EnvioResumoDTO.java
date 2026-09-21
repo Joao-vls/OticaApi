@@ -9,11 +9,12 @@ public record EnvioResumoDTO(
         UUID envioId,
         String codigoRastreio,
         String transportadoraNome,
+        UUID pedidoId,
         Long pedidoNumero,
         StatusPedido statusPedido,
         String clienteNome,
         String clienteEmail,
         OffsetDateTime enviadoEm,
         OffsetDateTime entregueEm,
-        List<ItemResumoDTO> itens // 🎯 NOVO: Lista de itens do envio
+        List<ItemResumoDTO> itens
 ) {}

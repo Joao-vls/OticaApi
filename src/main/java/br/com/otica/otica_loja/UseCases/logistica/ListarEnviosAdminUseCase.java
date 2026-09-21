@@ -49,6 +49,7 @@ public class ListarEnviosAdminUseCase {
                     envio.getId(),
                     envio.getCodigoRastreio(),
                     transportadoraNome,
+                    envio.getPedido().getId(),
                     envio.getPedido().getNumero(),
                     envio.getPedido().getStatus(),
                     clienteNome,
