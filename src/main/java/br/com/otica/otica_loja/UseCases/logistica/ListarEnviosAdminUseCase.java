@@ -5,6 +5,7 @@ import br.com.otica.otica_loja.Entity.Logistica.Envio;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import br.com.otica.otica_loja.Repository.Logistica.EnvioRepository;
 import br.com.otica.otica_loja.dto.EnvioResumoDTO;
+import br.com.otica.otica_loja.dto.ItemResumoDTO;
 import br.com.otica.otica_loja.enums.StatusPedido;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,12 +32,18 @@ public class ListarEnviosAdminUseCase {
     private List<EnvioResumoDTO> mapearParaDTO(List<Envio> envios) {
         return envios.stream().map(envio -> {
 
-            // Busca o cliente dono do pedido usando o usuarioId salvo no Pedido
             Usuario cliente = usuarioRepository.findById(envio.getPedido().getUsuarioId()).orElse(null);
 
             String clienteNome = cliente != null ? cliente.getNome() : "Usuário Excluído/Desconhecido";
             String clienteEmail = cliente != null ? cliente.getEmail() : "N/A";
             String transportadoraNome = envio.getTransportadora() != null ? envio.getTransportadora().getNome() : "N/A";
+
+            // 🎯 NOVO: Pega os itens do pedido associado a este envio
+            List<ItemResumoDTO> itensDTO = envio.getPedido().getItens() != null
+                    ? envio.getPedido().getItens().stream()
+                    .map(item -> new ItemResumoDTO(item.getNomeProduto(), item.getQuantidade()))
+                    .toList()
+                    : List.of();
 
             return new EnvioResumoDTO(
                     envio.getId(),
@@ -47,7 +54,8 @@ public class ListarEnviosAdminUseCase {
                     clienteNome,
                     clienteEmail,
                     envio.getEnviadoEm(),
-                    envio.getEntregueEm()
+                    envio.getEntregueEm(),
+                    itensDTO
             );
         }).toList();
     }
