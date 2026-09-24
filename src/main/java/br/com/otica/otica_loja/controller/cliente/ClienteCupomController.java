@@ -2,7 +2,9 @@ package br.com.otica.otica_loja.controller.cliente;
 
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Entity.Comercial.Cupom;
+import br.com.otica.otica_loja.UseCases.cupons.ListarCuponsDisponiveisClienteUseCase;
 import br.com.otica.otica_loja.UseCases.cupons.ValidarCupomUseCase;
+import br.com.otica.otica_loja.dto.CupomDisponivelResponse;
 import br.com.otica.otica_loja.dto.ValidarCupomClienteRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -10,11 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/cliente/cupons")
@@ -22,6 +20,9 @@ public class ClienteCupomController {
 
     @Autowired
     private ValidarCupomUseCase validarCupomUseCase;
+
+    @Autowired
+    private ListarCuponsDisponiveisClienteUseCase listarCuponsDisponiveisClienteUseCase;
 
     @PostMapping("/validar")
     public ResponseEntity<?> validarCupomParaCliente(
@@ -61,5 +62,16 @@ public class ClienteCupomController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
+    }
+    @GetMapping("/disponiveis")
+    public ResponseEntity<List<CupomDisponivelResponse>> listarCuponsDisponiveis(
+            @AuthenticationPrincipal Usuario usuarioLogado) {
+
+        if (usuarioLogado == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        List<CupomDisponivelResponse> cupons = listarCuponsDisponiveisClienteUseCase
+                .listarParaCliente(usuarioLogado.getId());
+
+        return ResponseEntity.ok(cupons);
     }
 }

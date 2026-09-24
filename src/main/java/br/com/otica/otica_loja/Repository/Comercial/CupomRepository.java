@@ -31,7 +31,7 @@ public interface CupomRepository extends JpaRepository<Cupom, UUID> {
             "WHERE c.ativo = true " +
             "AND c.dataInicio <= :now1 " +
             "AND c.dataFim >= :now2 " +
-            "AND c.quantidadeUtilizada < c.quantidadeTotal")
+            "AND (c.quantidadeTotal IS NULL OR c.quantidadeUtilizada < c.quantidadeTotal)")
     List<Cupom> findValidCupons(@Param("now1") OffsetDateTime now1,
                                 @Param("now2") OffsetDateTime now2);
 
