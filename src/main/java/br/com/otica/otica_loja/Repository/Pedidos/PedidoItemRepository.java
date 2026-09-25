@@ -14,11 +14,33 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface PedidoItemRepository extends JpaRepository<PedidoItem, UUID> {
+    public interface TopProdutoProjection {
+        String getNomeProduto();
+        Long getQuantidadeVendida();
+        java.math.BigDecimal getReceitaGerada();
+    }
+
+    @Query("SELECT pi.nomeProduto as nomeProduto, " +
+            "SUM(pi.quantidade) as quantidadeVendida, " +
+            "SUM(pi.subtotal) as receitaGerada " +
+            "FROM PedidoItem pi " +
+            "JOIN pi.pedido p " +
+            "WHERE p.status IN :statusValidos " +
+            "AND p.criadoEm >= :inicio AND p.criadoEm <= :fim " +
+            "GROUP BY pi.nomeProduto " +
+            "ORDER BY quantidadeVendida DESC")
+    List<TopProdutoProjection> obterProdutosMaisVendidos(
+            @Param("statusValidos") List<StatusPedido> statusValidos,
+            @Param("inicio") OffsetDateTime inicio,
+            @Param("fim") OffsetDateTime fim,
+            Pageable pageable);
+
 
     // --- Projeção e Query Corrigida para o Grid do Supabase (PostgreSQL) ---
     @Query("""
