@@ -4,9 +4,11 @@ import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioCrmUseCase;
 import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioEstoqueUseCase;
 import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioFinanceiroUseCase;
 
+import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioTrafegoUseCase;
 import br.com.otica.otica_loja.dto.RelatorioCrmRetencaoDTO;
 import br.com.otica.otica_loja.dto.RelatorioEstoqueDTO;
 import br.com.otica.otica_loja.dto.RelatorioFinanceiroVendasDTO;
+import br.com.otica.otica_loja.dto.RelatorioTrafegoDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +21,8 @@ import java.time.ZoneOffset;
 @RestController
 @RequestMapping("/admin/relatorios")
 public class AdminRelatorioController {
-
+    @Autowired
+    private GerarRelatorioTrafegoUseCase gerarRelatorioTrafegoUseCase;
     @Autowired
     private GerarRelatorioEstoqueUseCase gerarRelatorioEstoqueUseCase;
     @Autowired
@@ -80,6 +83,21 @@ public class AdminRelatorioController {
             @RequestParam(defaultValue = "50") int limiteAlertas) {
 
         RelatorioEstoqueDTO relatorio = gerarRelatorioEstoqueUseCase.executar(limiteAlertas);
+        return ResponseEntity.ok(relatorio);
+    }
+
+
+    @GetMapping("/trafego")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    public ResponseEntity<RelatorioTrafegoDTO> getRelatorioTrafego(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime dataFim,
+            @RequestParam(defaultValue = "15") int limiteRotas) {
+
+        if (dataFim == null) dataFim = OffsetDateTime.now();
+        if (dataInicio == null) dataInicio = dataFim.minusDays(30);
+
+        RelatorioTrafegoDTO relatorio = gerarRelatorioTrafegoUseCase.executar(dataInicio, dataFim, limiteRotas);
         return ResponseEntity.ok(relatorio);
     }
 }

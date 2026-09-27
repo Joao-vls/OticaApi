@@ -41,4 +41,21 @@ public interface LogAcessoRepository extends JpaRepository<LogAcesso, UUID> {
 
     // Buscar logs por método (GET, POST, PUT, DELETE)
     List<LogAcesso> findByMetodo(String metodo);
+
+    @Query("SELECT COUNT(l.id) FROM LogAcesso l WHERE l.criadoEm >= :inicio AND l.criadoEm <= :fim")
+    long contarAcessosNoPeriodo(@Param("inicio") OffsetDateTime inicio, @Param("fim") OffsetDateTime fim);
+
+    @Query("SELECT COUNT(DISTINCT COALESCE(l.sessionId, l.ip)) FROM LogAcesso l WHERE l.criadoEm >= :inicio AND l.criadoEm <= :fim")
+    long contarVisitantesUnicosNoPeriodo(@Param("inicio") OffsetDateTime inicio, @Param("fim") OffsetDateTime fim);
+
+    public interface RotaAcessoProjection {
+        String getRota();
+        Long getQuantidade();
+    }
+
+    @Query("SELECT l.rota as rota, COUNT(l.id) as quantidade " +
+            "FROM LogAcesso l " +
+            "WHERE l.criadoEm >= :inicio AND l.criadoEm <= :fim " +
+            "GROUP BY l.rota ORDER BY quantidade DESC")
+    List<RotaAcessoProjection> buscarTopRotas(@Param("inicio") OffsetDateTime inicio, @Param("fim") OffsetDateTime fim, org.springframework.data.domain.Pageable pageable);
 }
