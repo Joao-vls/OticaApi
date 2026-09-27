@@ -35,4 +35,7 @@ public interface LeadRepository extends JpaRepository<Lead, UUID> {
 
     // Buscar leads criados antes de uma data
     List<Lead> findByCriadoEmBefore(OffsetDateTime data);
+
+    long countByConvertidoFalse();
+    long countByConvertidoTrue();
 }

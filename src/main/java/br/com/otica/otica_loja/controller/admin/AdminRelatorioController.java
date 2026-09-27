@@ -1,7 +1,9 @@
 package br.com.otica.otica_loja.controller.admin;
 
+import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioCrmUseCase;
 import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioFinanceiroUseCase;
 
+import br.com.otica.otica_loja.dto.RelatorioCrmRetencaoDTO;
 import br.com.otica.otica_loja.dto.RelatorioFinanceiroVendasDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,7 +20,8 @@ public class AdminRelatorioController {
 
     @Autowired
     private GerarRelatorioFinanceiroUseCase gerarRelatorioFinanceiroUseCase;
-
+    @Autowired
+    private GerarRelatorioCrmUseCase gerarRelatorioCrmUseCase;
     /**
      * Retorna o relatório financeiro e de vendas num período específico.
      * Restrito a ADMIN e GERENTE (Atendentes não devem ver faturamento total).
@@ -58,6 +61,12 @@ public class AdminRelatorioController {
                 limiteTopProdutos
         );
 
+        return ResponseEntity.ok(relatorio);
+    }
+    @GetMapping("/crm-retencao")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    public ResponseEntity<RelatorioCrmRetencaoDTO> getRelatorioCrmRetencao() {
+        RelatorioCrmRetencaoDTO relatorio = gerarRelatorioCrmUseCase.executar();
         return ResponseEntity.ok(relatorio);
     }
 }
