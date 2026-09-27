@@ -1,9 +1,11 @@
 package br.com.otica.otica_loja.controller.admin;
 
 import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioCrmUseCase;
+import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioEstoqueUseCase;
 import br.com.otica.otica_loja.UseCases.relatorios.GerarRelatorioFinanceiroUseCase;
 
 import br.com.otica.otica_loja.dto.RelatorioCrmRetencaoDTO;
+import br.com.otica.otica_loja.dto.RelatorioEstoqueDTO;
 import br.com.otica.otica_loja.dto.RelatorioFinanceiroVendasDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,6 +20,8 @@ import java.time.ZoneOffset;
 @RequestMapping("/admin/relatorios")
 public class AdminRelatorioController {
 
+    @Autowired
+    private GerarRelatorioEstoqueUseCase gerarRelatorioEstoqueUseCase;
     @Autowired
     private GerarRelatorioFinanceiroUseCase gerarRelatorioFinanceiroUseCase;
     @Autowired
@@ -67,6 +71,15 @@ public class AdminRelatorioController {
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     public ResponseEntity<RelatorioCrmRetencaoDTO> getRelatorioCrmRetencao() {
         RelatorioCrmRetencaoDTO relatorio = gerarRelatorioCrmUseCase.executar();
+        return ResponseEntity.ok(relatorio);
+    }
+
+    @GetMapping("/produtos-estoque")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    public ResponseEntity<RelatorioEstoqueDTO> getRelatorioEstoque(
+            @RequestParam(defaultValue = "50") int limiteAlertas) {
+
+        RelatorioEstoqueDTO relatorio = gerarRelatorioEstoqueUseCase.executar(limiteAlertas);
         return ResponseEntity.ok(relatorio);
     }
 }

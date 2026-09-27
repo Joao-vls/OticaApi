@@ -73,7 +73,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
     List<Produto> findByDestaqueTrue();
     List<Produto> findByDeletadoEmIsNull();
     List<Produto> findByDeletadoEmIsNotNull();
-
+    long countByAtivoTrueAndDeletadoEmIsNull();
+    long countByAtivoFalseAndDeletadoEmIsNull();
     long countByAtivoTrue();
     long countByAtivoFalse();
 }
