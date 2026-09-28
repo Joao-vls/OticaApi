@@ -14,25 +14,24 @@ import java.util.UUID;
 @Table(name = "social_showcase", schema = "loja")
 public class SocialShowcase {
 
-    // Getters e Setters
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "produto_id")
-    private Produto produto; // FK para loja.produtos (pode ser null)
+    private Produto produto;
 
-    @Column(name = "marca_nome", length = 150)
+    @Column(name = "marca_nome", nullable = false, length = 150)
     private String marcaNome;
 
-    @Column(name = "modelo_nome", length = 150)
+    @Column(name = "modelo_nome", nullable = false, length = 150)
     private String modeloNome;
 
-    @Column(nullable = false, length = 150)
+    @Column(length = 150)
     private String username;
 
-    @Column(name = "thumbnail_path", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "thumbnail_path", columnDefinition = "TEXT")
     private String thumbnailPath;
 
     @Column(name = "video_path", nullable = false, columnDefinition = "TEXT")

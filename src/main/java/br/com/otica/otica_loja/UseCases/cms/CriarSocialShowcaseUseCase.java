@@ -30,6 +30,16 @@ public class CriarSocialShowcaseUseCase {
             MultipartFile thumbnailFile
     ) throws IOException {
 
+        if (dto.marcaNome() == null || dto.marcaNome().isBlank()) {
+            throw new IllegalArgumentException("O nome da marca é obrigatório.");
+        }
+        if (dto.modeloNome() == null || dto.modeloNome().isBlank()) {
+            throw new IllegalArgumentException("O nome do modelo é obrigatório.");
+        }
+        if (videoFile == null || videoFile.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo de vídeo é obrigatório.");
+        }
+
         SocialShowcase showcase = new SocialShowcase();
         showcase.setMarcaNome(dto.marcaNome());
         showcase.setModeloNome(dto.modeloNome());
@@ -44,16 +54,12 @@ public class CriarSocialShowcaseUseCase {
             showcase.setProduto(produto);
         }
 
-        if (videoFile == null || videoFile.isEmpty()) {
-            throw new IllegalArgumentException("O arquivo de vídeo é obrigatório.");
-        }
-
-        if (thumbnailFile == null || thumbnailFile.isEmpty()) {
-            throw new IllegalArgumentException("A thumbnail do vídeo é obrigatória.");
-        }
-
         String videoUrl = cloudinaryService.upload(videoFile, TipoMidia.VIDEO);
-        String thumbnailUrl = cloudinaryService.upload(thumbnailFile, TipoMidia.IMAGE);
+        String thumbnailUrl = null;
+
+        if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
+            thumbnailUrl = cloudinaryService.upload(thumbnailFile, TipoMidia.IMAGE);
+        }
 
         showcase.setVideoPath(videoUrl);
         showcase.setThumbnailPath(thumbnailUrl);
