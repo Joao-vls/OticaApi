@@ -36,6 +36,8 @@ public interface SocialShowcaseRepository extends JpaRepository<SocialShowcase, 
     // Buscar showcases criados após uma data
     List<SocialShowcase> findByCriadoEmAfter(OffsetDateTime data);
 
+    List<SocialShowcase> findByAtivoTrueOrderByOrdemAsc();
+
     // Buscar showcases com mais de X visualizações
     List<SocialShowcase> findByVisualizacoesGreaterThan(Long minVisualizacoes);
 

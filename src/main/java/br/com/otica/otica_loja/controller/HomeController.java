@@ -2,7 +2,10 @@ package br.com.otica.otica_loja.controller;
 
 import br.com.otica.otica_loja.Repository.CMS.BannerEditorialRepository;
 import br.com.otica.otica_loja.UseCases.cms.BuscarVitrinePorSlugUseCase;
+import br.com.otica.otica_loja.UseCases.cms.ListarShowcasesPublicosUseCase;
 import br.com.otica.otica_loja.UseCases.cms.ListarVitrinesAtivasUseCase;
+import br.com.otica.otica_loja.UseCases.cms.RegistrarVisualizacaoUseCase;
+import br.com.otica.otica_loja.dto.ShowcasePublicoDTO;
 import br.com.otica.otica_loja.dto.cms.PromoMainResponseDTO;
 import br.com.otica.otica_loja.dto.cms.PromoSectionDTO;
 import br.com.otica.otica_loja.dto.cms.VitrineResponseDTO;
@@ -11,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/home")
@@ -21,6 +25,8 @@ public class HomeController {
     private final BannerEditorialRepository bannerEditorialRepository;
     private final BuscarVitrinePorSlugUseCase buscarVitrinePorSlugUseCase;
     private final ListarVitrinesAtivasUseCase listarVitrinesAtivasUseCase;
+    private final ListarShowcasesPublicosUseCase listarShowcasesPublicosUseCase;
+    private final RegistrarVisualizacaoUseCase registrarVisualizacaoUseCase;
 
     @GetMapping("/vitrines")
     public ResponseEntity<List<VitrineResponseDTO>> getVitrinesAtivas() {
@@ -75,7 +81,16 @@ public class HomeController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+    @GetMapping("/showcases")
+    public ResponseEntity<List<ShowcasePublicoDTO>> getShowcasesPublicos() {
+        return ResponseEntity.ok(listarShowcasesPublicosUseCase.executar());
+    }
 
+    @PostMapping("/showcase/{id}/view")
+    public ResponseEntity<Void> registrarView(@PathVariable UUID id) {
+        registrarVisualizacaoUseCase.executar(id);
+        return ResponseEntity.ok().build();
+    }
     @GetMapping("/vitrine/{slug}")
     public ResponseEntity<VitrineResponseDTO> getVitrinePorSlug(@PathVariable String slug) {
         try {
