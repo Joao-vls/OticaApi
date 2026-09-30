@@ -9,6 +9,7 @@ import br.com.otica.otica_loja.UseCases.auth.RegisterUseCase;
 import br.com.otica.otica_loja.dto.auth.LoginRequest;
 import br.com.otica.otica_loja.dto.auth.RegisterRequest;
 import br.com.otica.otica_loja.service.admin.LogAcessoService;
+import br.com.otica.otica_loja.service.auth.RateLimitService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -48,8 +49,19 @@ public class AuthController {
     @Autowired
     private LogAcessoService logAcessoService;
 
+    @Autowired
+    private RateLimitService rateLimitService; // <- Injeção do Rate Limit
+
     @PostMapping("/registrar")
-    public ResponseEntity<?> registrar(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<?> registrar(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) { // <- Adicionado HttpServletRequest
+
+        // Aplicação do Rate Limit para Registro
+        String ip = rateLimitService.obterIpCliente(httpRequest);
+        if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Muitas tentativas de cadastro. Tente novamente mais tarde."));
+        }
+
         try {
             Usuario usuarioCriado = registerUseCase.registrarCliente(request);
 
@@ -68,6 +80,14 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+
+        // Aplicação do Rate Limit para Login
+        String ip = rateLimitService.obterIpCliente(httpRequest);
+        if (!rateLimitService.resolveLoginBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Muitas tentativas de login. Tente novamente em alguns minutos."));
+        }
+
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailAndAtivoTrue(request.getEmail());
 
         if (usuarioOpt.isEmpty()) {
@@ -98,12 +118,10 @@ public class AuthController {
             Sessao sessao = loginUseCase.login(request.getEmail(), request.getSenha());
 
             sessao.setUserAgent(httpRequest.getHeader("User-Agent"));
-            sessao.setIpAddress(httpRequest.getRemoteAddr());
+            sessao.setIpAddress(httpRequest.getRemoteAddr()); // Aqui você também pode usar o obterIpCliente se usar proxy
             sessaoRepository.save(sessao);
 
             logAcessoService.registrar(httpRequest, usuario.getId());
-
-
 
             // Cookie exclusivo do Cliente: client_token
             ResponseCookie authCookie = ResponseCookie.from("client_token", sessao.getToken())

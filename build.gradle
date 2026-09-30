@@ -34,7 +34,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'com.mercadopago:sdk-java:3.5.0'
-
+	implementation 'com.bucket4j:bucket4j-core:8.10.1'
 	// Correção da vulnerabilidade CVE-2025-48734 trazida pelo Mercado Pago
 	constraints {
 		implementation('commons-beanutils:commons-beanutils:1.11.0') {

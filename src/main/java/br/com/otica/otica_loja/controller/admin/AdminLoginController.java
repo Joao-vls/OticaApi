@@ -7,6 +7,7 @@ import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
 import br.com.otica.otica_loja.UseCases.auth.LoginUseCase;
 import br.com.otica.otica_loja.dto.auth.LoginRequest;
 import br.com.otica.otica_loja.service.admin.LogAcessoService;
+import br.com.otica.otica_loja.service.auth.RateLimitService; // <- Import do RateLimitService
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -43,8 +44,19 @@ public class AdminLoginController {
     @Autowired
     private LogAcessoService logAcessoService;
 
+    @Autowired
+    private RateLimitService rateLimitService; // <- Injeção do serviço de Rate Limit
+
     @PostMapping("/login")
     public ResponseEntity<?> loginAdmin(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+
+        // 0. Aplicação do Rate Limit para Login Admin (reaproveitando as regras de login criadas)
+        String ip = rateLimitService.obterIpCliente(httpRequest);
+        if (!rateLimitService.resolveLoginBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Muitas tentativas de login no painel. Tente novamente em alguns minutos."));
+        }
+
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailAndAtivoTrue(request.getEmail());
 
         if (usuarioOpt.isEmpty()) {
@@ -75,7 +87,7 @@ public class AdminLoginController {
             Sessao sessao = loginUseCase.login(request.getEmail(), request.getSenha());
 
             sessao.setUserAgent(httpRequest.getHeader("User-Agent"));
-            sessao.setIpAddress(httpRequest.getRemoteAddr());
+            sessao.setIpAddress(ip); // Aproveitei para usar a variável 'ip' que já trata proxies
             sessaoRepository.save(sessao);
 
             logAcessoService.registrar(httpRequest, usuario.getId());
