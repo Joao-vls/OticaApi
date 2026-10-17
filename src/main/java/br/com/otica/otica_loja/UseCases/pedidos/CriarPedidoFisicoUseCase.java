@@ -92,9 +92,10 @@ public class CriarPedidoFisicoUseCase {
             total = BigDecimal.ZERO;
         }
 
-        // 3. Status inicial (Pronta Entrega -> PAGO | Montagem/Laboratório -> SEPARACAO)
+
+        // 3. Status inicial (Pronta Entrega -> ENTREGUE | Montagem/Laboratório -> SEPARACAO)
         boolean prontaEntrega = Boolean.TRUE.equals(request.prontaEntrega());
-        StatusPedido statusInicial = prontaEntrega ? StatusPedido.PAGO : StatusPedido.SEPARACAO;
+        StatusPedido statusInicial = prontaEntrega ? StatusPedido.ENTREGUE : StatusPedido.SEPARACAO;
 
         // 4. Criação do Pedido
         Pedido pedido = new Pedido();
