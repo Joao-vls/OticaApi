@@ -1,12 +1,10 @@
 package br.com.otica.otica_loja.controller.admin;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
-import br.com.otica.otica_loja.UseCases.produtos.AtualizarProdutoUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.CriarProdutoUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.DeletarVarianteUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.ExcluirProdutoUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.ExcluirProdutoVarianteUseCase;
-import br.com.otica.otica_loja.UseCases.produtos.ListarProdutosUseCase;
+import br.com.otica.otica_loja.UseCases.produtos.*;
+
+import br.com.otica.otica_loja.UseCases.variantes.DeletarVarianteUseCase;
+import br.com.otica.otica_loja.dto.ProdutoPdvDTO;
 import br.com.otica.otica_loja.dto.ProdutoRequestDTO;
 import br.com.otica.otica_loja.dto.ProdutoUpdateRequestDTO;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +28,7 @@ public class AdminProdutoController {
     private final CriarProdutoUseCase criarProdutoUseCase;
     private final ListarProdutosUseCase listarProdutosUseCase;
     private final AtualizarProdutoUseCase atualizarProdutoUseCase;
+    private final BuscarProdutosPdvUseCase buscarProdutosPdvUseCase;
     private final ExcluirProdutoUseCase excluirProdutoUseCase;
     private final DeletarVarianteUseCase deletarVarianteUseCase;
     private final ExcluirProdutoVarianteUseCase excluirProdutoVarianteUseCase; // Mantido apenas para mídias avulsas se necessário
@@ -120,5 +119,10 @@ public class AdminProdutoController {
         // Chame aqui o seu UseCase ou repositório para atualizar o status no banco
         // Exemplo: atualizarProdutoUseCase.atualizarStatus(id, ativo);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/pdv/busca")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
+    public ResponseEntity<List<ProdutoPdvDTO>> buscarParaPdv(@RequestParam("q") String termo) {
+        return ResponseEntity.ok(buscarProdutosPdvUseCase.buscar(termo));
     }
 }

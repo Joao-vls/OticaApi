@@ -1,4 +1,4 @@
-package br.com.otica.otica_loja.UseCases.produtos;
+package br.com.otica.otica_loja.UseCases.variantes;
 
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;

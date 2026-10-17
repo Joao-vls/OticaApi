@@ -41,32 +41,38 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Preflight HTTP (CORS OPTIONS)
+                        // 1. Regras Globais e Públicas (Mais específicas primeiro)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // 🔥 Liberação da rota do Keep-Alive (UptimeRobot / Render)
                         .requestMatchers("/health").permitAll()
-
-                        // Endpoints públicos de autenticação
                         .requestMatchers("/admin/auth/**", "/api/auth/**", "/auth/**").permitAll()
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/produtos/**", "/categorias/**", "/marcas/**", "/home/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/avaliacoes/produto/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pagamentos/webhook").permitAll()
+
+                        // 2. Área do Cliente
+                        .requestMatchers("/cliente/**", "/api/cliente/**").hasAnyRole("CLIENTE", "ADMIN")
+                        .requestMatchers("/api/avaliacoes/pode-avaliar/**").hasAnyRole("CLIENTE", "ADMIN")
+                        .requestMatchers("/api/pagamentos/**").hasAnyRole("CLIENTE", "ADMIN")
+
+                        // 3. Regras Específicas do PDV / Balcão (ATENDENTE, GERENTE, ADMIN)
+                        // Garante que o atendente consiga criar pedido e buscar produtos
+                        .requestMatchers(HttpMethod.POST, "/admin/pedidos/fisico").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
+                        .requestMatchers(HttpMethod.GET, "/admin/pedidos/pdv/busca").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
+                        .requestMatchers(HttpMethod.GET, "/admin/produtos/pdv/busca").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
+
+                        // 4. Regras Genéricas da Área Administrativa
+                        // GET liberado para Admin, Gerente e Atendente (visualização)
                         .requestMatchers(HttpMethod.GET, "/admin/**").hasAnyRole("ADMIN", "GERENTE", "ATENDENTE")
 
-                        // Áreas administrativas
+                        // Modificações gerais (POST, PUT, PATCH, DELETE) travadas para ADMIN por padrão
+                        // Se um atendente precisar de permissão em outro lugar (ex: alterar status), deve ser criada uma regra específica ACIMA desta linha.
                         .requestMatchers(HttpMethod.POST, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/admin/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE")
-                        .requestMatchers(HttpMethod.PUT, "/admin/**").hasAnyRole("ADMIN", "ATENDENTE")
 
-                        // Área restrita do cliente
-                        .requestMatchers("/cliente/**", "/api/cliente/**").hasAnyRole("CLIENTE","ADMIN")
-                        .requestMatchers("/api/avaliacoes/pode-avaliar/**").hasAnyRole("CLIENTE", "ADMIN")
-                        .requestMatchers("/api/pagamentos/**").hasAnyRole("CLIENTE", "ADMIN")
+                        // 5. Qualquer outra requisição precisa de autenticação
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(tokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

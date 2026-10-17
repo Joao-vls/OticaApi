@@ -28,7 +28,7 @@ public class AdminPedidoController {
     private final IniciarSeparacaoUseCase iniciarSeparacaoUseCase;
     private final ListarPedidosAdminUseCase listarPedidosAdminUseCase; // 👈 Injetado via Lombok
     private final CriarPedidoFisicoUseCase criarPedidoFisicoUseCase; // 👈 Injetado
-    private final BuscarProdutosPdvUseCase buscarProdutosPdvUseCase;
+
 
     @PostMapping("/fisico")
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
@@ -56,9 +56,5 @@ public class AdminPedidoController {
         List<Pedido> pedidos = listarPedidosAdminUseCase.listarPorStatus(status);
         return ResponseEntity.ok(pedidos);
     }
-    @GetMapping("/pdv/busca")
-    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
-    public ResponseEntity<List<ProdutoPdvDTO>> buscarParaPdv(@RequestParam("q") String termo) {
-        return ResponseEntity.ok(buscarProdutosPdvUseCase.buscar(termo));
-    }
+
 }
