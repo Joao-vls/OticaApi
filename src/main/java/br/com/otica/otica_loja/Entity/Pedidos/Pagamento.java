@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode; // 👈 Add this import
+import org.hibernate.type.SqlTypes;           // 👈 Add this import
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -25,7 +27,7 @@ public class Pagamento {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pedido_id", nullable = false)
-    @JsonIgnore // 👈 Corta o loop de volta para o pedido
+    @JsonIgnore
     private Pedido pedido;
 
     @Column(length = 50)
@@ -45,8 +47,10 @@ public class Pagamento {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal valor;
 
+    // 👇 REQUIRED FIX: Tell Hibernate to map this String as JSON/JSONB natively
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    @JsonIgnore // 👈 ESSENCIAL: Ignora o payload bruto do gateway para o JSON não explodir de tamanho
+    @JsonIgnore
     private String payload;
 
     @Column(name = "criado_em", nullable = false)

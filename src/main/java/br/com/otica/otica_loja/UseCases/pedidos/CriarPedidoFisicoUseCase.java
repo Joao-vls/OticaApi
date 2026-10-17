@@ -199,6 +199,7 @@ public class CriarPedidoFisicoUseCase {
         pagamento.setMetodo(request.metodoPagamento());
         pagamento.setStatus(StatusPagamento.APROVADO);
         pagamento.setValor(total);
+        pagamento.setPayload("{}");
         pagamento.setCriadoEm(OffsetDateTime.now());
         pagamento.setAtualizadoEm(OffsetDateTime.now());
         pagamentoRepository.save(pagamento);
