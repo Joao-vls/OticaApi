@@ -76,6 +76,7 @@ public interface ProdutoVarianteRepository extends JpaRepository<ProdutoVariante
 
     public interface ProdutoPdvProjection {
         UUID getVarianteId();
+        UUID getProdutoId();
         String getNomeProduto();
         String getNomeVariante();
         String getSku();
@@ -85,7 +86,7 @@ public interface ProdutoVarianteRepository extends JpaRepository<ProdutoVariante
     }
 
     // 👇 QUERY DE BUSCA EXCLUSIVA PARA O BALCÃO (ESTOQUE > 0)
-    @Query("SELECT v.id as varianteId, p.nome as nomeProduto, v.nome as nomeVariante, " +
+    @Query("SELECT v.id as varianteId, p.id as produtoId, p.nome as nomeProduto, v.nome as nomeVariante, " +
             "v.sku as sku, v.stock as stock, v.priceOverride as priceOverride, p.preco as precoBase " +
             "FROM ProdutoVariante v JOIN v.produto p " +
             "WHERE (LOWER(p.nome) LIKE LOWER(CONCAT('%', :termo, '%')) " +

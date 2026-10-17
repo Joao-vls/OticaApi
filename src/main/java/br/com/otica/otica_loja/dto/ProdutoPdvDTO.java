@@ -8,5 +8,6 @@ public record ProdutoPdvDTO(
         String nomeCompleto,
         String sku,
         Integer estoque,
-        BigDecimal precoFinal
+        BigDecimal precoFinal,
+        String imagemUrl // 👈 Novo campo
 ) {}
