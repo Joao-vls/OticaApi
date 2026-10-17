@@ -6,5 +6,6 @@ public enum MetodoPagamento {
     CARTAO_DEBITO,
     BOLETO,
     CASHBACK,
-    GIFTCARD
+    GIFTCARD,
+    DINHEIRO // 👈 Adicionado para pagamentos na loja física
 }

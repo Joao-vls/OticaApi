@@ -14,8 +14,11 @@ import java.util.UUID;
 @Repository
 public interface CupomRepository extends JpaRepository<Cupom, UUID> {
 
-    // Buscar cupom pelo código
+    // Buscar cupom pelo código exato
     Optional<Cupom> findByCodigo(String codigo);
+
+    // 👈 NOVO: Buscar cupom ignorando maiúsculas e minúsculas (ideal para uso manual no balcão)
+    Optional<Cupom> findByCodigoIgnoreCase(String codigo);
 
     // Verificar se já existe cupom com determinado código
     boolean existsByCodigo(String codigo);
@@ -34,7 +37,6 @@ public interface CupomRepository extends JpaRepository<Cupom, UUID> {
             "AND (c.quantidadeTotal IS NULL OR c.quantidadeUtilizada < c.quantidadeTotal)")
     List<Cupom> findValidCupons(@Param("now1") OffsetDateTime now1,
                                 @Param("now2") OffsetDateTime now2);
-
 
     // Buscar cupons expirados
     List<Cupom> findByDataFimBefore(OffsetDateTime now);

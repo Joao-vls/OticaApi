@@ -5,6 +5,7 @@ import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -72,4 +73,28 @@ public interface ProdutoVarianteRepository extends JpaRepository<ProdutoVariante
             "AND v.stock <= v.estoqueMinimo " +
             "ORDER BY v.stock ASC")
     List<AlertaEstoqueProjection> buscarItensAbaixoEstoqueMinimo(Pageable pageable);
+
+    public interface ProdutoPdvProjection {
+        UUID getVarianteId();
+        String getNomeProduto();
+        String getNomeVariante();
+        String getSku();
+        Integer getStock();
+        java.math.BigDecimal getPriceOverride();
+        java.math.BigDecimal getPrecoBase();
+    }
+
+    // 👇 QUERY DE BUSCA EXCLUSIVA PARA O BALCÃO (ESTOQUE > 0)
+    @Query("SELECT v.id as varianteId, p.nome as nomeProduto, v.nome as nomeVariante, " +
+            "v.sku as sku, v.stock as stock, v.priceOverride as priceOverride, p.preco as precoBase " +
+            "FROM ProdutoVariante v JOIN v.produto p " +
+            "WHERE (LOWER(p.nome) LIKE LOWER(CONCAT('%', :termo, '%')) " +
+            "   OR LOWER(v.nome) LIKE LOWER(CONCAT('%', :termo, '%')) " +
+            "   OR LOWER(v.sku) LIKE LOWER(CONCAT('%', :termo, '%')) " +
+            "   OR LOWER(v.codigoBarras) LIKE LOWER(CONCAT('%', :termo, '%'))) " +
+            "AND v.ativo = true AND v.deletadoEm IS NULL " +
+            "AND p.ativo = true AND p.deletadoEm IS NULL " +
+            "AND v.stock > 0 " + // 👈 REGRA: MAIOR QUE ZERO
+            "ORDER BY p.nome ASC, v.nome ASC")
+    List<ProdutoPdvProjection> buscarVariantesParaPDV(@Param("termo") String termo, Pageable pageable);
 }
