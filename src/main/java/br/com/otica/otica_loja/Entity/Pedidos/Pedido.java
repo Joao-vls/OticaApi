@@ -27,7 +27,7 @@ public class Pedido {
     @Column(unique = true, updatable = false, insertable = false)
     private Long numero;
 
-    @Column(name = "usuario_id", nullable = false)
+    @Column(name = "usuario_id")
     private UUID usuarioId;
 
     @Column(name = "endereco_id")
@@ -35,6 +35,19 @@ public class Pedido {
 
     @Column(name = "order_id_mercadopago", length = 100)
     private String orderIdMercadoPago; // 👈 Campo adicionado para persistir o ID da Order ("ORD...")
+
+    // 👇 NOVOS CAMPOS PARA CLIENTE DO BALCÃO (Não cadastrado)
+    @Column(name = "cliente_nome", length = 150)
+    private String clienteNome;
+
+    @Column(name = "cliente_cpf", length = 14)
+    private String clienteCpf;
+
+    @Column(name = "cliente_telefone", length = 20)
+    private String clienteTelefone;
+
+    @Column(name = "cliente_email", length = 150)
+    private String clienteEmail;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cupom_id")

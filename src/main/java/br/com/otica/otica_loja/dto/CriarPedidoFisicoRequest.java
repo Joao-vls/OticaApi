@@ -9,8 +9,14 @@ import java.util.List;
 import java.util.UUID;
 
 public record CriarPedidoFisicoRequest(
-        // Opcional: ID do cliente cadastrado. Se nulo, associa ao consumidor final
+        // 👇 Se ele já for cadastrado, usamos o ID.
         UUID clienteId,
+
+        // 👇 Se não for cadastrado, preenchemos os dados abaixo:
+        String clienteNome,
+        String clienteCpf,
+        String clienteTelefone,
+        String clienteEmail,
 
         @NotEmpty(message = "O pedido deve conter pelo menos um item.")
         @Valid
@@ -19,18 +25,9 @@ public record CriarPedidoFisicoRequest(
         @NotNull(message = "O método de pagamento é obrigatório.")
         MetodoPagamento metodoPagamento,
 
-        // Valor entregue pelo cliente (para calcular troco em dinheiro)
         BigDecimal valorRecebido,
-
-        // Desconto manual em R$ concedido no balcão
         BigDecimal descontoManual,
-
-        // Cupom de desconto opcional
         String codigoCupom,
-
-        // Ex: "Venda Balcão", "Cliente aguarda montagem de lentes"
         String observacoes,
-
-        // true = Pronta entrega (Status PAGO) | false = Requer montagem/lab (Status SEPARACAO)
         Boolean prontaEntrega
 ) {}

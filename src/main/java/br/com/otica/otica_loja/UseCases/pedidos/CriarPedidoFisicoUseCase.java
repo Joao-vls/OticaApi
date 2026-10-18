@@ -1,5 +1,6 @@
 package br.com.otica.otica_loja.UseCases.pedidos;
 
+import br.com.otica.otica_loja.Entity.Auth.Perfil;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoMidia;
 import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
@@ -9,6 +10,7 @@ import br.com.otica.otica_loja.Entity.Pedidos.Pagamento;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Entity.Pedidos.PedidoItem;
 import br.com.otica.otica_loja.Entity.Pedidos.PedidoStatusHistorico;
+import br.com.otica.otica_loja.Repository.Auth.PerfilRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
 import br.com.otica.otica_loja.Repository.Estoque.EstoqueMovimentacaoRepository;
@@ -31,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -44,7 +47,7 @@ public class CriarPedidoFisicoUseCase {
     private final ProdutoVarianteRepository produtoVarianteRepository;
     private final EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
     private final CupomRepository cupomRepository;
-
+    private final PerfilRepository perfilRepository;
     @Transactional
     public Pedido executar(CriarPedidoFisicoRequest request, UUID atendenteId) {
 
@@ -97,9 +100,29 @@ public class CriarPedidoFisicoUseCase {
         boolean prontaEntrega = Boolean.TRUE.equals(request.prontaEntrega());
         StatusPedido statusInicial = prontaEntrega ? StatusPedido.ENTREGUE : StatusPedido.SEPARACAO;
 
+        // 👇 NOVA LÓGICA DE IDENTIFICAÇÃO DO CLIENTE
+        UUID idDoClienteNoBanco = request.clienteId();
+
+        // Se não mandou um ID direto, mas mandou um CPF, vamos verificar se esse CPF já tem cadastro na loja!
+        if (idDoClienteNoBanco == null && request.clienteCpf() != null && !request.clienteCpf().isBlank()) {
+            Optional<Perfil> perfilExistente = perfilRepository.findByCpf(request.clienteCpf().replaceAll("\\D", "")); // Limpa pontuação
+            if (perfilExistente.isPresent()) {
+                idDoClienteNoBanco = perfilExistente.get().getId();
+            }
+        }
         // 4. Criação do Pedido
         Pedido pedido = new Pedido();
-        pedido.setUsuarioId(request.clienteId() != null ? request.clienteId() : atendenteId);
+
+        // Se achou um ID (ou enviou na request), vincula ao usuário. Senão, fica null (ou vinculado ao atendente, caso seja a sua regra de negócio, mas recomendo deixar NULL se for cliente avulso).
+        pedido.setUsuarioId(idDoClienteNoBanco);
+
+        // Salva os dados avulsos para o recibo/histórico, mesmo se vinculou ao ID (útil para clientes não cadastrados)
+        pedido.setClienteNome(request.clienteNome());
+        // Salva CPF limpo (só números)
+        pedido.setClienteCpf(request.clienteCpf() != null ? request.clienteCpf().replaceAll("\\D", "") : null);
+        pedido.setClienteTelefone(request.clienteTelefone());
+        pedido.setClienteEmail(request.clienteEmail());
+
         pedido.setCupom(cupomAplicado);
         pedido.setSubtotal(subtotal);
         pedido.setDesconto(descontoTotal);
