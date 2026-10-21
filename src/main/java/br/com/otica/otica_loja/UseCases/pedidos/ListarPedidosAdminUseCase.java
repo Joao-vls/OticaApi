@@ -4,6 +4,8 @@ import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.enums.StatusPedido;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -16,6 +18,9 @@ public class ListarPedidosAdminUseCase {
     @Autowired
     private PedidoRepository pedidoRepository;
 
+    public Page<Pedido> buscarPaginado(String busca, StatusPedido status, Pageable pageable) {
+        return pedidoRepository.buscarComFiltrosPaginado(busca, status, pageable);
+    }
     /**
      * Lista todos os pedidos do sistema.
      */

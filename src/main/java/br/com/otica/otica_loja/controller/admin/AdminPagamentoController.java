@@ -13,6 +13,10 @@ import br.com.otica.otica_loja.dto.EstornarPagamentoRequestDTO;
 import br.com.otica.otica_loja.enums.StatusPedido;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -63,7 +67,20 @@ public class AdminPagamentoController {
         List<Pedido> pedidos = listarPedidosAdminUseCase.listarPorValorMinimo(valor);
         return ResponseEntity.ok(pedidos);
     }
+    @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
+    @GetMapping("/pedidos/paginados")
+    public ResponseEntity<Page<Pedido>> listarPedidosPaginados(
+            @RequestParam(required = false) String busca,
+            @RequestParam(required = false) StatusPedido status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
+        // Ordena para que os pedidos mais recentes apareçam primeiro
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "criadoEm"));
+        Page<Pedido> pedidos = listarPedidosAdminUseCase.buscarPaginado(busca, status, pageable);
+
+        return ResponseEntity.ok(pedidos);
+    }
     // 4. Listar pedidos criados após uma data específica - ADMIN e GERENTE
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
     @GetMapping("/pedidos/criados-depois")

@@ -61,6 +61,20 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
     // Verificar se já existe pedido com determinado número
     boolean existsByNumero(Long numero);
 
+    @Query("SELECT p FROM Pedido p WHERE " +
+            "(:status IS NULL OR p.status = :status) AND " +
+            "(:busca IS NULL OR :busca = '' OR " +
+            "CAST(p.id AS String) LIKE CONCAT('%', :busca, '%') OR " +
+            "CAST(p.numero AS String) LIKE CONCAT('%', :busca, '%') OR " +
+            "CAST(p.usuarioId AS String) LIKE CONCAT('%', :busca, '%') OR " +
+            "LOWER(p.clienteNome) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "p.clienteCpf LIKE CONCAT('%', :busca, '%') OR " +
+            "p.clienteTelefone LIKE CONCAT('%', :busca, '%') OR " +
+            "LOWER(p.clienteEmail) LIKE LOWER(CONCAT('%', :busca, '%')))")
+    Page<Pedido> buscarComFiltrosPaginado(
+            @Param("busca") String busca,
+            @Param("status") StatusPedido status,
+            Pageable pageable);
     // 🔴 NOVO: Buscar o último pedido realizado pelo usuário ordenado por data descendente
     Optional<Pedido> findTopByUsuarioIdOrderByCriadoEmDesc(UUID usuarioId);
 }
