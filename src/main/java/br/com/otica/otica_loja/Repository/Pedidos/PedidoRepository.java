@@ -17,7 +17,7 @@ import java.util.UUID;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
-    // 1. Projeção para os totais do pedido
+
     interface ResumoFinanceiroProjection {
         Long getQuantidade();
         java.math.BigDecimal getReceitaTotal();
@@ -36,45 +36,32 @@ public interface PedidoRepository extends JpaRepository<Pedido, UUID> {
             @Param("statusValidos") List<StatusPedido> statusValidos,
             @Param("inicio") OffsetDateTime inicio,
             @Param("fim") OffsetDateTime fim);
-    // Buscar pedido pelo número
+
     Optional<Pedido> findByNumero(Long numero);
-
     Page<Pedido> findByStatusIn(List<StatusPedido> status, Pageable pageable);
-    // Buscar pedidos de um usuário
     List<Pedido> findByUsuarioId(UUID usuarioId);
-
-    // Buscar pedidos por status
     List<Pedido> findByStatus(StatusPedido status);
-
-    // Buscar pedidos com total acima de um valor
     List<Pedido> findByTotalGreaterThan(BigDecimal valor);
-
-    // Buscar pedidos criados após uma data
     List<Pedido> findByCriadoEmAfter(OffsetDateTime data);
-
-    // Buscar pedidos atualizados após uma data
     List<Pedido> findByAtualizadoEmAfter(OffsetDateTime data);
-
-    // Buscar pedidos com cupom aplicado
     List<Pedido> findByCupomIsNotNull();
-
-    // Verificar se já existe pedido com determinado número
     boolean existsByNumero(Long numero);
 
+    // 🎯 CORREÇÃO DO FILTRO: Usando SpEL para evitar erro de NULL com Enums no Hibernate
     @Query("SELECT p FROM Pedido p WHERE " +
-            "(:status IS NULL OR p.status = :status) AND " +
-            "(:busca IS NULL OR :busca = '' OR " +
-            "CAST(p.id AS String) LIKE CONCAT('%', :busca, '%') OR " +
-            "CAST(p.numero AS String) LIKE CONCAT('%', :busca, '%') OR " +
-            "CAST(p.usuarioId AS String) LIKE CONCAT('%', :busca, '%') OR " +
-            "LOWER(p.clienteNome) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
-            "p.clienteCpf LIKE CONCAT('%', :busca, '%') OR " +
-            "p.clienteTelefone LIKE CONCAT('%', :busca, '%') OR " +
-            "LOWER(p.clienteEmail) LIKE LOWER(CONCAT('%', :busca, '%')))")
+            "(:#{#status == null} = true OR p.status = :status) AND " +
+            "(:#{#busca == null || #busca.trim().isEmpty()} = true OR " +
+            "LOWER(CAST(p.id AS string)) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(CAST(p.numero AS string)) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(CAST(p.usuarioId AS string)) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(COALESCE(p.clienteNome, '')) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(COALESCE(p.clienteCpf, '')) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(COALESCE(p.clienteTelefone, '')) LIKE LOWER(CONCAT('%', :busca, '%')) OR " +
+            "LOWER(COALESCE(p.clienteEmail, '')) LIKE LOWER(CONCAT('%', :busca, '%')))")
     Page<Pedido> buscarComFiltrosPaginado(
             @Param("busca") String busca,
             @Param("status") StatusPedido status,
             Pageable pageable);
-    // 🔴 NOVO: Buscar o último pedido realizado pelo usuário ordenado por data descendente
+
     Optional<Pedido> findTopByUsuarioIdOrderByCriadoEmDesc(UUID usuarioId);
 }
