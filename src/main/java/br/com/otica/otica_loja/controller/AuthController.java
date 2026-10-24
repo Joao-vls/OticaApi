@@ -4,8 +4,7 @@ import br.com.otica.otica_loja.Entity.Auth.Sessao;
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Repository.Auth.SessaoRepository;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
-import br.com.otica.otica_loja.UseCases.auth.LoginUseCase;
-import br.com.otica.otica_loja.UseCases.auth.RegisterUseCase;
+import br.com.otica.otica_loja.UseCases.auth.*;
 import br.com.otica.otica_loja.dto.auth.LoginRequest;
 import br.com.otica.otica_loja.dto.auth.RegisterRequest;
 import br.com.otica.otica_loja.service.admin.LogAcessoService;
@@ -50,12 +49,20 @@ public class AuthController {
     private LogAcessoService logAcessoService;
 
     @Autowired
-    private RateLimitService rateLimitService; // <- Injeção do Rate Limit
+    private RateLimitService rateLimitService;
+
+    @Autowired
+    private VerificarEmailUseCase verificarEmailUseCase;
+
+    @Autowired
+    private DesbloquearContaUseCase desbloquearContaUseCase;
+
+    // NOTA: bloquearContaUseCase foi removido do Controller pois agora
+    // a regra de negócio de falhas reside inteiramente dentro do LoginUseCase.
 
     @PostMapping("/registrar")
-    public ResponseEntity<?> registrar(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) { // <- Adicionado HttpServletRequest
+    public ResponseEntity<?> registrar(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
 
-        // Aplicação do Rate Limit para Registro
         String ip = rateLimitService.obterIpCliente(httpRequest);
         if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
@@ -81,11 +88,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
 
-        // Aplicação do Rate Limit para Login
         String ip = rateLimitService.obterIpCliente(httpRequest);
+
+        // 1. Defesa de Infraestrutura: Bloqueia IPs com comportamento de spam (mas NÃO bloqueia a conta)
         if (!rateLimitService.resolveLoginBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of("message", "Muitas tentativas de login. Tente novamente em alguns minutos."));
+                    .body(Map.of("message", "Muitas requisições deste dispositivo. Aguarde alguns minutos e tente novamente."));
         }
 
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailAndAtivoTrue(request.getEmail());
@@ -96,7 +104,19 @@ public class AuthController {
 
         Usuario usuario = usuarioOpt.get();
 
-        // 1. Validação prévia de permissão (Evita criar sessão para perfis de Admin no endpoint do cliente)
+        // 2. Trava o login se a conta já estiver bloqueada previamente
+        if (Boolean.TRUE.equals(usuario.getBloqueado())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Sua conta está temporariamente bloqueada. Verifique seu e-mail para instruções de desbloqueio."));
+        }
+
+        // 3. Trava se o email não foi verificado
+        if (Boolean.FALSE.equals(usuario.getVerificado())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Por favor, verifique seu e-mail antes de fazer login."));
+        }
+
+        // 4. Evita que Administradores façam login pela área de Cliente
         List<String> rawAuthorities = usuario.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(Objects::nonNull)
@@ -114,29 +134,34 @@ public class AuthController {
         }
 
         try {
-            // 2. Criação da sessão apenas após aprovação do perfil
+            // 5. Executa o login e valida a senha (aqui dentro o contador de falhas é gerenciado)
             Sessao sessao = loginUseCase.login(request.getEmail(), request.getSenha());
 
             sessao.setUserAgent(httpRequest.getHeader("User-Agent"));
-            sessao.setIpAddress(httpRequest.getRemoteAddr()); // Aqui você também pode usar o obterIpCliente se usar proxy
+            sessao.setIpAddress(ip);
             sessaoRepository.save(sessao);
 
             logAcessoService.registrar(httpRequest, usuario.getId());
 
-            // Cookie exclusivo do Cliente: client_token
             ResponseCookie authCookie = ResponseCookie.from("client_token", sessao.getToken())
                     .httpOnly(true)
-                    .secure(true) // OBRIGATÓRIO SER TRUE
+                    .secure(true)
                     .path("/")
-                    .maxAge(Duration.ofHours(1))
-                    .sameSite("None") // OBRIGATÓRIO SER "None"
+                    .maxAge(Duration.ofHours(12)) // Sessão configurada para 12h
+                    .sameSite("None")
                     .build();
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, authCookie.toString())
                     .body(Map.of("message", "Login realizado com sucesso."));
 
+        } catch (IllegalStateException e) {
+            // Captura o erro disparado pelo LoginUseCase quando a conta atinge o maximo de tentativas
+            logAcessoService.registrar(httpRequest, usuario.getId());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+
         } catch (IllegalArgumentException e) {
+            // Captura erro de senha incorreta normal (ainda não atingiu o limite)
             logAcessoService.registrar(httpRequest, usuario.getId());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
 
@@ -193,14 +218,40 @@ public class AuthController {
 
         ResponseCookie cleanCookie = ResponseCookie.from("client_token", "")
                 .httpOnly(true)
-                .secure(true) // Mudar para true
+                .secure(true)
                 .path("/")
                 .maxAge(0)
-                .sameSite("None") // Mudar para "None"
+                .sameSite("None")
                 .build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
                 .body(Map.of("message", "Logout realizado com sucesso!"));
+    }
+
+    @GetMapping("/verificar-email")
+    public ResponseEntity<?> verificarEmail(@RequestParam String token) {
+        try {
+            verificarEmailUseCase.verificar(token);
+            return ResponseEntity.ok(Map.of("message", "E-mail verificado com sucesso! Você já pode fazer login."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erro ao verificar e-mail."));
+        }
+    }
+
+    @GetMapping("/desbloquear-conta")
+    public ResponseEntity<?> desbloquearConta(@RequestParam String token) {
+        try {
+            desbloquearContaUseCase.executar(token);
+            return ResponseEntity.ok(Map.of("message", "Conta desbloqueada com sucesso! Você já pode fazer login."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erro ao desbloquear a conta."));
+        }
     }
 }

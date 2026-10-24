@@ -36,6 +36,12 @@ public class Usuario implements UserDetails {
     @Column(name = "ativo", nullable = false)
     private Boolean ativo = true;
 
+    @Column(name = "bloqueado", nullable = false)
+    private Boolean bloqueado = false;
+
+    @Column(name = "tentativas_falhas", nullable = false)
+    private Integer tentativasFalhas = 0;
+
     @Column(name = "verificado", nullable = false)
     private Boolean verificado = false;
 

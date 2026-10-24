@@ -4,50 +4,58 @@ import br.com.otica.otica_loja.Entity.Auth.TokenVerificacaoEmail;
 import br.com.otica.otica_loja.Entity.Auth.Usuario;
 import br.com.otica.otica_loja.Repository.Auth.TokenVerificacaoEmailRepository;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class VerificarEmailUseCase {
 
-    @Autowired
-    private TokenVerificacaoEmailRepository tokenRepository;
-
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final TokenVerificacaoEmailRepository tokenRepository;
+    private final UsuarioRepository usuarioRepository;
 
     /**
-     * Verifica o email do usuário a partir de um token válido.
+     * Verifica o e-mail do usuário a partir de um token.
+     * Regras aplicadas:
+     *  - token deve existir
+     *  - token não pode estar marcado como verificado
+     *  - token não pode estar expirado
+     *  - marca token como verificado e marca usuário como verificado
+     *
+     * @param tokenStr token recebido por e-mail
+     * @return usuário verificado
      */
-    public Usuario verificar(String token) {
-        // 1. Buscar token válido (não verificado e não expirado)
-        Optional<TokenVerificacaoEmail> tokenOpt =
-                tokenRepository.findByTokenAndVerificadoFalseAndExpiraEmAfter(token, OffsetDateTime.now());
+    @Transactional
+    public Usuario verificar(String tokenStr) {
+        TokenVerificacaoEmail token = tokenRepository.findByToken(tokenStr)
+                .orElseThrow(() -> new IllegalArgumentException("Token inválido ou não encontrado."));
 
-        if (tokenOpt.isEmpty()) {
-            throw new IllegalArgumentException("Token inválido ou expirado.");
+        if (Boolean.TRUE.equals(token.getVerificado())) {
+            throw new IllegalArgumentException("Este e-mail já foi verificado anteriormente.");
         }
 
-        TokenVerificacaoEmail tokenEmail = tokenOpt.get();
-
-        // 2. Buscar usuário associado
-        Optional<Usuario> usuarioOpt = usuarioRepository.findById(tokenEmail.getUsuarioId());
-        if (usuarioOpt.isEmpty()) {
-            throw new IllegalStateException("Usuário não encontrado para este token.");
+        if (token.getExpiraEm() == null || token.getExpiraEm().isBefore(OffsetDateTime.now())) {
+            throw new IllegalArgumentException("O token expirou. Solicite um novo reenvio.");
         }
 
-        Usuario usuario = usuarioOpt.get();
+        // Marcar token como verificado
+        token.setVerificado(true);
+        tokenRepository.save(token);
 
-        // 3. Marcar usuário como verificado
+        // Atualizar usuário para verificado
+        Usuario usuario = usuarioRepository.findById(token.getUsuarioId())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado para este token."));
+
+        if (Boolean.TRUE.equals(usuario.getVerificado())) {
+            // Caso raro: usuário já marcado como verificado, apenas retorna
+            return usuario;
+        }
+
         usuario.setVerificado(true);
         usuarioRepository.save(usuario);
-
-        // 4. Marcar token como verificado
-        tokenEmail.setVerificado(true);
-        tokenRepository.save(tokenEmail);
 
         return usuario;
     }
