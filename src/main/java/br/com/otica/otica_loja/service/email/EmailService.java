@@ -50,8 +50,8 @@ public class EmailService {
 
             log.info("E-mail de verificação enviado para {}", destinatario);
 
-        } catch (MessagingException e) {
-            log.error("Erro ao enviar e-mail de verificação para {}: {}", destinatario, e.getMessage());
+        }catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
+            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
         }
     }
 
@@ -81,8 +81,8 @@ public class EmailService {
 
             log.info("E-mail de desbloqueio enviado para {}", destinatario);
 
-        } catch (MessagingException e) {
-            log.error("Erro ao enviar e-mail de desbloqueio para {}: {}", destinatario, e.getMessage());
+        } catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
+            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
         }
     }
 
@@ -112,8 +112,8 @@ public class EmailService {
 
             log.info("E-mail de recuperação de senha enviado para {}", destinatario);
 
-        } catch (MessagingException e) {
-            log.error("Erro ao enviar e-mail de recuperação para {}: {}", destinatario, e.getMessage());
+        } catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
+            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
         }
     }
 }
