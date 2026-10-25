@@ -1,6 +1,5 @@
 package br.com.otica.otica_loja.service.email;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +16,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    // Mantido caso precise usar futuramente, mas o envio agora usa o e-mail validado direto no código.
     @Value("${spring.mail.username}")
     private String remetente;
 
@@ -29,8 +29,8 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            //helper.setFrom(remetente);
             helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
+            helper.setTo(destinatario); // <-- CORRIGIDO: Agora o destinatário será preenchido
             helper.setSubject("Confirme seu e-mail - Ótica");
 
             // Rota atualizada para bater no frontend do Angular
@@ -48,10 +48,10 @@ public class EmailService {
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
 
-            log.info("E-mail de verificação enviado para {}", destinatario);
+            log.info("E-mail de verificação enviado com sucesso para {}", destinatario);
 
-        }catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
-            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
+        } catch (Exception e) { // Captura qualquer erro de e-mail sem quebrar a aplicação
+            log.error("Erro ao enviar e-mail de verificação para {}: {}", destinatario, e.getMessage());
         }
     }
 
@@ -61,7 +61,6 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            //helper.setFrom(remetente);
             helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Aviso de Segurança - Conta Bloqueada");
@@ -80,10 +79,10 @@ public class EmailService {
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
 
-            log.info("E-mail de desbloqueio enviado para {}", destinatario);
+            log.info("E-mail de desbloqueio enviado com sucesso para {}", destinatario);
 
-        } catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
-            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail de desbloqueio para {}: {}", destinatario, e.getMessage());
         }
     }
 
@@ -93,7 +92,6 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            //helper.setFrom(remetente);
             helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Redefinição de Senha - Ótica");
@@ -112,10 +110,10 @@ public class EmailService {
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
 
-            log.info("E-mail de recuperação de senha enviado para {}", destinatario);
+            log.info("E-mail de recuperação de senha enviado com sucesso para {}", destinatario);
 
-        } catch (Exception e) { // <-- MUDE AQUI DE MessagingException PARA Exception
-            log.error("Erro ao enviar e-mail para {}: {}", destinatario, e.getMessage());
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail de recuperação para {}: {}", destinatario, e.getMessage());
         }
     }
 }
