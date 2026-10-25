@@ -29,8 +29,8 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente);
-            helper.setTo(destinatario);
+            //helper.setFrom(remetente);
+            helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
             helper.setSubject("Confirme seu e-mail - Ótica");
 
             // Rota atualizada para bater no frontend do Angular
@@ -61,7 +61,8 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente);
+            //helper.setFrom(remetente);
+            helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Aviso de Segurança - Conta Bloqueada");
 
@@ -92,7 +93,8 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente);
+            //helper.setFrom(remetente);
+            helper.setFrom("joao.leite.lvj@gmail.com", "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Redefinição de Senha - Ótica");
 
