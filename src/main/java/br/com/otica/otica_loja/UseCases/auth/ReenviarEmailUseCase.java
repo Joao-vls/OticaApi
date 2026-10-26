@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,10 +29,15 @@ public class ReenviarEmailUseCase {
         if (optUsuario.isPresent()) {
             Usuario usuario = optUsuario.get();
 
-            // Só gera um novo token e envia o e-mail se a conta ainda NÃO estiver verificada
             if (Boolean.FALSE.equals(usuario.getVerificado())) {
-                String tokenStr = UUID.randomUUID().toString();
 
+                // 🔥 NOVO: Busca todos os tokens antigos e invalida
+                List<TokenVerificacaoEmail> tokensAntigos = tokenRepository.findByUsuarioIdAndVerificadoFalse(usuario.getId());
+                tokensAntigos.forEach(t -> t.setVerificado(true)); // Marca como usado/inválido
+                tokenRepository.saveAll(tokensAntigos);
+
+                // Cria o novo token
+                String tokenStr = UUID.randomUUID().toString();
                 TokenVerificacaoEmail token = new TokenVerificacaoEmail();
                 token.setUsuarioId(usuario.getId());
                 token.setToken(tokenStr);

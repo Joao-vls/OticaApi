@@ -4,6 +4,7 @@ import br.com.otica.otica_loja.Entity.Auth.TokenVerificacaoEmail;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ public interface TokenVerificacaoEmailRepository extends JpaRepository<TokenVeri
     // Buscar token pelo valor
     Optional<TokenVerificacaoEmail> findByToken(String token);
 
+    List<TokenVerificacaoEmail> findByUsuarioIdAndVerificadoFalse(UUID usuarioId);
     // Buscar token pelo usuário
     Optional<TokenVerificacaoEmail> findByUsuarioId(UUID usuarioId);
 

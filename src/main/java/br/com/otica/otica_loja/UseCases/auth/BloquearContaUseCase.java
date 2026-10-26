@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,11 +31,15 @@ public class BloquearContaUseCase {
 
     @Transactional
     public void processarBloqueioEEnvio(Usuario usuario) {
-        // Garante que a conta fique (ou continue) bloqueada
         usuario.setBloqueado(true);
         usuarioRepository.save(usuario);
 
-        // Gera sempre um NOVO token de desbloqueio válido por 2 horas
+        // 🔥 NOVO: Busca e invalida tokens de desbloqueio anteriores
+        List<TokenDesbloqueio> tokensAntigos = tokenRepository.findByUsuarioIdAndUtilizadoFalse(usuario.getId());
+        tokensAntigos.forEach(t -> t.setUtilizado(true));
+        tokenRepository.saveAll(tokensAntigos);
+
+        // Gera o novo token
         String tokenStr = UUID.randomUUID().toString();
         TokenDesbloqueio token = new TokenDesbloqueio();
         token.setUsuarioId(usuario.getId());
@@ -43,8 +48,6 @@ public class BloquearContaUseCase {
         token.setUtilizado(false);
 
         tokenRepository.save(token);
-
-        // Dispara o e-mail com o novo token gerado
         emailService.enviarEmailDesbloqueio(usuario.getEmail(), usuario.getNome(), tokenStr);
     }
 }
