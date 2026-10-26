@@ -57,6 +57,8 @@ public class AuthController {
     @Autowired
     private DesbloquearContaUseCase desbloquearContaUseCase;
 
+    @Autowired
+    private ReenviarEmailUseCase reenviarEmailUseCase;
     // NOTA: bloquearContaUseCase foi removido do Controller pois agora
     // a regra de negócio de falhas reside inteiramente dentro do LoginUseCase.
 
@@ -257,6 +259,46 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Erro ao desbloquear a conta."));
+        }
+    }
+    @PostMapping("/reenviar-verificacao")
+    public ResponseEntity<?> reenviarVerificacao(@RequestBody Map<String, String> body, HttpServletRequest httpRequest) {
+        String email = body.get("email");
+        String ip = rateLimitService.obterIpCliente(httpRequest);
+
+        // Rate Limit: Bloqueia IPs que tentarem pedir reenvio muitas vezes seguidas
+        if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Muitas tentativas de envio. Aguarde alguns minutos antes de tentar novamente."));
+        }
+
+        try {
+            reenviarEmailUseCase.reenviarVerificacao(email);
+            return ResponseEntity.ok(Map.of("message", "Se o e-mail existir, um novo link de ativação foi enviado."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erro interno ao processar o reenvio."));
+        }
+    }
+
+    @PostMapping("/reenviar-desbloqueio")
+    public ResponseEntity<?> reenviarDesbloqueio(@RequestBody Map<String, String> body, HttpServletRequest httpRequest) {
+        String email = body.get("email");
+        String ip = rateLimitService.obterIpCliente(httpRequest);
+
+        // Rate Limit
+        if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Muitas tentativas de envio. Aguarde alguns minutos."));
+        }
+
+        try {
+            // Reaproveita o UseCase existente que já gera o token e envia o e-mail
+            bloquearContaUseCase.bloquearEEnviarEmail(email);
+            return ResponseEntity.ok(Map.of("message", "Se a conta estiver bloqueada, um novo link de desbloqueio foi enviado."));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Erro interno ao processar o reenvio."));
         }
     }
 }
