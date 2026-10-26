@@ -85,12 +85,15 @@ public class AuthController {
         }
     }
 
+    @Autowired
+    private BloquearContaUseCase bloquearContaUseCase;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
 
         String ip = rateLimitService.obterIpCliente(httpRequest);
 
-        // 1. Defesa de Infraestrutura: Bloqueia IPs com comportamento de spam (mas NÃO bloqueia a conta)
+        // 1. Defesa de Infraestrutura: Rate Limit por IP
         if (!rateLimitService.resolveLoginBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Muitas requisições deste dispositivo. Aguarde alguns minutos e tente novamente."));
@@ -104,13 +107,15 @@ public class AuthController {
 
         Usuario usuario = usuarioOpt.get();
 
-        // 2. Trava o login se a conta já estiver bloqueada previamente
+        // 2. Trava e envia/reenvia o e-mail com instruções de desbloqueio se a conta estiver bloqueada
         if (Boolean.TRUE.equals(usuario.getBloqueado())) {
+            bloquearContaUseCase.processarBloqueioEEnvio(usuario);
+
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Sua conta está temporariamente bloqueada. Verifique seu e-mail para instruções de desbloqueio."));
+                    .body(Map.of("message", "Sua conta está bloqueada. Reenviamos um e-mail com as instruções de desbloqueio."));
         }
 
-        // 3. Trava se o email não foi verificado
+        // 3. Trava se o e-mail não foi verificado
         if (Boolean.FALSE.equals(usuario.getVerificado())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Por favor, verifique seu e-mail antes de fazer login."));

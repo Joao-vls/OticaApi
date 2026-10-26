@@ -24,24 +24,27 @@ public class BloquearContaUseCase {
     @Transactional
     public void bloquearEEnviarEmail(String email) {
         Optional<Usuario> optUsuario = usuarioRepository.findByEmailAndAtivoTrue(email);
+        // Se o usuário existir, repassa para o método principal de bloqueio
+        optUsuario.ifPresent(this::processarBloqueioEEnvio);
+    }
 
-        if (optUsuario.isPresent()) {
-            Usuario usuario = optUsuario.get();
+    @Transactional
+    public void processarBloqueioEEnvio(Usuario usuario) {
+        // Garante que a conta fique (ou continue) bloqueada
+        usuario.setBloqueado(true);
+        usuarioRepository.save(usuario);
 
-            // Só executa se não estiver bloqueado ainda, para evitar spam de e-mails
-            if (!usuario.getBloqueado()) {
-                usuario.setBloqueado(true);
-                usuarioRepository.save(usuario);
+        // Gera sempre um NOVO token de desbloqueio válido por 2 horas
+        String tokenStr = UUID.randomUUID().toString();
+        TokenDesbloqueio token = new TokenDesbloqueio();
+        token.setUsuarioId(usuario.getId());
+        token.setToken(tokenStr);
+        token.setExpiraEm(OffsetDateTime.now().plusHours(2));
+        token.setUtilizado(false);
 
-                String tokenStr = UUID.randomUUID().toString();
-                TokenDesbloqueio token = new TokenDesbloqueio();
-                token.setUsuarioId(usuario.getId());
-                token.setToken(tokenStr);
-                token.setExpiraEm(OffsetDateTime.now().plusHours(2)); // Válido por 2h
+        tokenRepository.save(token);
 
-                tokenRepository.save(token);
-                emailService.enviarEmailDesbloqueio(usuario.getEmail(), usuario.getNome(), tokenStr);
-            }
-        }
+        // Dispara o e-mail com o novo token gerado
+        emailService.enviarEmailDesbloqueio(usuario.getEmail(), usuario.getNome(), tokenStr);
     }
 }
