@@ -2,11 +2,11 @@ package br.com.otica.otica_loja.service.auth;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,6 +16,14 @@ public class RateLimitService {
     // Armazena os limites em memória baseados no IP
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
+
+    // 🔥 Mapa para guardar as tentativas de reenvio em memória (Bloqueio Exponencial)
+    private final ConcurrentHashMap<String, ResendAttempt> resendAttempts = new ConcurrentHashMap<>();
+
+    private static class ResendAttempt {
+        int tentativas = 0;
+        OffsetDateTime ultimaTentativa = OffsetDateTime.now();
+    }
 
     // Resolve o limite de Login
     public Bucket resolveLoginBucket(String ip) {
@@ -52,5 +60,43 @@ public class RateLimitService {
             return request.getRemoteAddr();
         }
         return xfHeader.split(",")[0].trim();
+    }
+
+    /**
+     * 🔥 Calcula o tempo de espera dobrando a cada tentativa (30s, 60s, 120s...)
+     * @return 0 se puder enviar, ou o tempo restante em segundos se estiver bloqueado.
+     */
+    public long verificarRateLimitExponencial(String chaveUnica) {
+        OffsetDateTime agora = OffsetDateTime.now();
+        ResendAttempt attempt = resendAttempts.computeIfAbsent(chaveUnica, k -> new ResendAttempt());
+
+        synchronized (attempt) {
+            // Primeira tentativa
+            if (attempt.tentativas == 0) {
+                attempt.tentativas = 1;
+                attempt.ultimaTentativa = agora;
+                return 0;
+            }
+
+            // Calcula a espera: 30s * 2^(tentativas - 1)
+            long waitSeconds = 30L * (long) Math.pow(2, attempt.tentativas - 1);
+            OffsetDateTime limiteParaProximoEnvio = attempt.ultimaTentativa.plusSeconds(waitSeconds);
+
+            // Verifica se ainda está no tempo de bloqueio
+            if (agora.isBefore(limiteParaProximoEnvio)) {
+                return Duration.between(agora, limiteParaProximoEnvio).getSeconds(); // Retorna os segundos faltantes
+            }
+
+            // Se já passou o tempo exigido, autoriza o envio.
+            // Se passou muito tempo desde o último envio (ex: 2 horas), "reseta" o multiplicador.
+            if (Duration.between(attempt.ultimaTentativa, agora).toHours() >= 2) {
+                attempt.tentativas = 1;
+            } else {
+                attempt.tentativas++; // Aumenta o multiplicador para a próxima tentativa
+            }
+
+            attempt.ultimaTentativa = agora;
+            return 0; // Pode enviar
+        }
     }
 }

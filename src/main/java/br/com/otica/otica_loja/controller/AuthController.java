@@ -59,8 +59,9 @@ public class AuthController {
 
     @Autowired
     private ReenviarEmailUseCase reenviarEmailUseCase;
-    // NOTA: bloquearContaUseCase foi removido do Controller pois agora
-    // a regra de negócio de falhas reside inteiramente dentro do LoginUseCase.
+
+    @Autowired
+    private BloquearContaUseCase bloquearContaUseCase;
 
     @PostMapping("/registrar")
     public ResponseEntity<?> registrar(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
@@ -86,9 +87,6 @@ public class AuthController {
                     .body(Map.of("message", "Erro interno ao cadastrar cliente: " + e.getMessage()));
         }
     }
-
-    @Autowired
-    private BloquearContaUseCase bloquearContaUseCase;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
@@ -141,7 +139,7 @@ public class AuthController {
         }
 
         try {
-            // 5. Executa o login e valida a senha (aqui dentro o contador de falhas é gerenciado)
+            // 5. Executa o login e valida a senha
             Sessao sessao = loginUseCase.login(request.getEmail(), request.getSenha());
 
             sessao.setUserAgent(httpRequest.getHeader("User-Agent"));
@@ -163,12 +161,10 @@ public class AuthController {
                     .body(Map.of("message", "Login realizado com sucesso."));
 
         } catch (IllegalStateException e) {
-            // Captura o erro disparado pelo LoginUseCase quando a conta atinge o maximo de tentativas
             logAcessoService.registrar(httpRequest, usuario.getId());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
 
         } catch (IllegalArgumentException e) {
-            // Captura erro de senha incorreta normal (ainda não atingiu o limite)
             logAcessoService.registrar(httpRequest, usuario.getId());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
 
@@ -261,15 +257,23 @@ public class AuthController {
                     .body(Map.of("message", "Erro ao desbloquear a conta."));
         }
     }
+
     @PostMapping("/reenviar-verificacao")
     public ResponseEntity<?> reenviarVerificacao(@RequestBody Map<String, String> body, HttpServletRequest httpRequest) {
         String email = body.get("email");
         String ip = rateLimitService.obterIpCliente(httpRequest);
 
-        // Rate Limit: Bloqueia IPs que tentarem pedir reenvio muitas vezes seguidas
+        // 1. Defesa de Infraestrutura por IP
         if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Muitas tentativas de envio. Aguarde alguns minutos antes de tentar novamente."));
+        }
+
+        // 2. Defesa de Regra de Negócio (Bloqueio Exponencial por E-mail)
+        long tempoEspera = rateLimitService.verificarRateLimitExponencial("verify_" + email);
+        if (tempoEspera > 0) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Por segurança, aguarde " + tempoEspera + " segundos antes de solicitar um novo e-mail."));
         }
 
         try {
@@ -286,14 +290,20 @@ public class AuthController {
         String email = body.get("email");
         String ip = rateLimitService.obterIpCliente(httpRequest);
 
-        // Rate Limit
+        // 1. Defesa de Infraestrutura por IP
         if (!rateLimitService.resolveRegisterBucket(ip).tryConsume(1)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Muitas tentativas de envio. Aguarde alguns minutos."));
         }
 
+        // 2. Defesa de Regra de Negócio (Bloqueio Exponencial por E-mail)
+        long tempoEspera = rateLimitService.verificarRateLimitExponencial("unlock_" + email);
+        if (tempoEspera > 0) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Por segurança, aguarde " + tempoEspera + " segundos antes de solicitar um novo e-mail."));
+        }
+
         try {
-            // Reaproveita o UseCase existente que já gera o token e envia o e-mail
             bloquearContaUseCase.bloquearEEnviarEmail(email);
             return ResponseEntity.ok(Map.of("message", "Se a conta estiver bloqueada, um novo link de desbloqueio foi enviado."));
         } catch (Exception e) {
