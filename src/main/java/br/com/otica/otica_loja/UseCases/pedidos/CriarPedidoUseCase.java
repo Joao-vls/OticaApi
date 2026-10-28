@@ -18,8 +18,10 @@ import br.com.otica.otica_loja.Repository.Comercial.CupomRepository;
 import br.com.otica.otica_loja.Repository.Estoque.EstoqueMovimentacaoRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoItemRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
+import br.com.otica.otica_loja.enums.TipoEmail;
 import br.com.otica.otica_loja.enums.TipoMidia;
 import br.com.otica.otica_loja.enums.TipoMovimentacao;
+import br.com.otica.otica_loja.service.email.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,8 +60,11 @@ public class CriarPedidoUseCase {
     @Autowired
     private EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
 
+    @Autowired
+    private EmailService emailService;
+
+
     @Transactional
-    // 👇 REMOVIDO o 'String codigoCupom' dos parâmetros.
     public Pedido criar(UUID usuarioId, BigDecimal valorFrete, String observacoes) {
 
         // 1. Buscar carrinho
@@ -259,7 +264,7 @@ public class CriarPedidoUseCase {
 
             pedidoItemRepository.save(pedidoItem);
         }
-
+        emailService.enviarEmailPedido(pedido, TipoEmail.PEDIDO_REALIZADO, null);
         return pedido;
     }
 }

@@ -5,6 +5,8 @@ import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Repository.Logistica.EnvioRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.enums.StatusPedido;
+import br.com.otica.otica_loja.enums.TipoEmail;
+import br.com.otica.otica_loja.service.email.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,11 +22,10 @@ public class ConfirmarEntregaUseCase {
     @Autowired
     private PedidoRepository pedidoRepository;
 
-    /**
-     * Confirma a entrega de um envio e atualiza o pedido para ENTREGUE.
-     */
+    @Autowired
+    private EmailService emailService;
+
     public Envio confirmarEntrega(UUID envioId, String localizacao, String observacao) {
-        // 1. Buscar envio
         Envio envio = envioRepository.findById(envioId)
                 .orElseThrow(() -> new IllegalArgumentException("Envio não encontrado."));
 
@@ -34,16 +35,17 @@ public class ConfirmarEntregaUseCase {
             throw new IllegalArgumentException("Somente pedidos enviados podem ser confirmados como entregues.");
         }
 
-        // 2. Atualizar envio
         envio.setEntregueEm(OffsetDateTime.now());
         envioRepository.save(envio);
 
-        // 3. Atualizar pedido para ENTREGUE
         pedido.setStatus(StatusPedido.ENTREGUE);
         pedido.setAtualizadoEm(OffsetDateTime.now());
         pedido.setObservacoes("Pedido entregue em " + localizacao +
                 (observacao != null ? " | Obs: " + observacao : ""));
-        pedidoRepository.save(pedido);
+        Pedido pedidoSalvo = pedidoRepository.save(pedido);
+
+
+        emailService.enviarEmailPedido(pedidoSalvo, TipoEmail.PEDIDO_ENTREGUE, null);
 
         return envio;
     }

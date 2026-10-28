@@ -6,6 +6,8 @@ import br.com.otica.otica_loja.dto.PixPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
 
 // 1. IMPORTS CORRETOS DO JACKSON DO SPRING BOOT
+import br.com.otica.otica_loja.enums.TipoEmail;
+import br.com.otica.otica_loja.service.email.EmailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,6 +32,9 @@ public class CriarPagamentoPixUseCase {
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
+
+    @Autowired
+    private EmailService emailService;
 
     public PixPagamentoResponse criarPagamento(UUID pedidoId, UUID usuarioId, String emailCliente) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
@@ -105,6 +110,14 @@ public class CriarPagamentoPixUseCase {
             pedido.setAtualizadoEm(OffsetDateTime.now());
             pedidoRepository.save(pedido);
 
+            String blocoPixHtml = "<div style='background-color: #f8f9fa; border: 1px dashed #004d99; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;'>" +
+                    "<h3 style='margin-top: 0; color: #004d99; font-family: Arial, sans-serif;'>Pague via PIX para liberar seu pedido!</h3>" +
+                    (qrCodeBase64 != null && !qrCodeBase64.isBlank() ? "<img src='data:image/png;base64," + qrCodeBase64 + "' width='180' height='180' style='margin: 15px 0;'><br>" : "") +
+                    "<p style='font-size: 13px; color: #555; margin-bottom: 8px; font-family: Arial, sans-serif;'><b>Ou copie e cole o código abaixo no seu banco:</b></p>" +
+                    "<input type='text' value='" + chavePixCopiaECola + "' readonly style='width: 95%; padding: 12px; border: 1px solid #ced4da; font-size: 12px; text-align: center; background: #ffffff; border-radius: 4px; color: #495057;'>" +
+                    "</div>";
+
+            emailService.enviarEmailPedido(pedido, TipoEmail.PEDIDO_REALIZADO, blocoPixHtml);
             return new PixPagamentoResponse(
                     pedido.getId(),
                     pedido.getTotal(),

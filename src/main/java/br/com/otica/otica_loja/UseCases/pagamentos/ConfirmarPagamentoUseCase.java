@@ -1,10 +1,12 @@
 package br.com.otica.otica_loja.UseCases.pagamentos;
 
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
-import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoRepository; // 👈 Novo
+import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoRepository;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.dto.ConfirmarPagamentoRequest;
 import br.com.otica.otica_loja.enums.StatusPedido;
+import br.com.otica.otica_loja.enums.TipoEmail;
+import br.com.otica.otica_loja.service.email.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +19,10 @@ public class ConfirmarPagamentoUseCase {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private CarrinhoRepository carrinhoRepository; // 👈 Novo
+    private CarrinhoRepository carrinhoRepository;
+
+    @Autowired
+    private EmailService emailService; // 👈 Adicionado
 
     public Pedido confirmarPagamento(ConfirmarPagamentoRequest request) {
         Pedido pedido = pedidoRepository.findById(request.pedidoId())
@@ -47,11 +52,14 @@ public class ConfirmarPagamentoUseCase {
         pedido.setObservacoes(observacao);
         Pedido pedidoSalvo = pedidoRepository.save(pedido);
 
-        // 👇 LIMPA O CARRINHO AQUI (PIX/BOLETO FOI PAGO!) 👇
+        // Limpa o carrinho
         carrinhoRepository.findByUsuarioId(pedidoSalvo.getUsuarioId()).ifPresent(carrinho -> {
             carrinho.getItens().clear();
             carrinhoRepository.save(carrinho);
         });
+
+        // 👇 DISPARA O E-MAIL DE PAGAMENTO APROVADO
+        emailService.enviarEmailPedido(pedidoSalvo, TipoEmail.PAGAMENTO_APROVADO, null);
 
         return pedidoSalvo;
     }

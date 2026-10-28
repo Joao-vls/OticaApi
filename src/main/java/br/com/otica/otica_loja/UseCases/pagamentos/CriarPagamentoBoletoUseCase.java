@@ -8,6 +8,8 @@ import br.com.otica.otica_loja.dto.BoletoPagamentoRequest;
 import br.com.otica.otica_loja.dto.BoletoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
 
+import br.com.otica.otica_loja.enums.TipoEmail;
+import br.com.otica.otica_loja.service.email.EmailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,6 +40,9 @@ public class CriarPagamentoBoletoUseCase {
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
+
+    @Autowired
+    private EmailService emailService;
 
     public BoletoPagamentoResponse criarPagamento(BoletoPagamentoRequest request) {
         Pedido pedido = pedidoRepository.findById(request.pedidoId())
@@ -144,7 +149,7 @@ public class CriarPagamentoBoletoUseCase {
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
             HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(body, headers);
 
-            System.out.println("Enviando requisição de Boleto (PRODUÇÃO) para Orders API...");
+            //System.out.println("Enviando requisição de Boleto (PRODUÇÃO) para Orders API...");
 
             ResponseEntity<String> createResponse = restTemplate.postForEntity(
                     "https://api.mercadopago.com/v1/orders",
@@ -173,6 +178,16 @@ public class CriarPagamentoBoletoUseCase {
             pedido.setStatus(StatusPedido.PROCESSANDO);
             pedido.setAtualizadoEm(OffsetDateTime.now());
             pedidoRepository.save(pedido);
+
+            String blocoBoletoHtml = "<div style='background-color: #f8f9fa; border: 1px dashed #004d99; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px; font-family: Arial, sans-serif;'>" +
+                    "<h3 style='margin-top: 0; color: #004d99;'>Seu boleto foi gerado com sucesso!</h3>" +
+                    "<p style='font-size: 14px; color: #333;'>Vencimento em 3 dias úteis.</p>" +
+                    "<a href='" + boletoUrl + "' target='_blank' style='display: inline-block; padding: 12px 24px; color: #fff; background-color: #004d99; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 20px;'>Visualizar Boleto</a><br>" +
+                    "<p style='font-size: 13px; color: #555; margin-bottom: 8px;'><b>Ou copie a Linha Digitável:</b></p>" +
+                    "<input type='text' value='" + linhaDigitavel + "' readonly style='width: 95%; padding: 12px; border: 1px solid #ced4da; font-size: 12px; text-align: center; background: #ffffff; border-radius: 4px; color: #495057;'>" +
+                    "</div>";
+
+            emailService.enviarEmailPedido(pedido, TipoEmail.PEDIDO_REALIZADO, blocoBoletoHtml);
 
             return new BoletoPagamentoResponse(
                     pedido.getId(),
