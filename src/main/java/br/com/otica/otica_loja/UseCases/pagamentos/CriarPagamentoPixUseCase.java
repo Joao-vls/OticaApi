@@ -109,12 +109,15 @@ public class CriarPagamentoPixUseCase {
             pedido.setStatus(StatusPedido.PROCESSANDO);
             pedido.setAtualizadoEm(OffsetDateTime.now());
             pedidoRepository.save(pedido);
+            String qrCodeUrl = "https://quickchart.io/qr?text=" + chavePixCopiaECola + "&size=250";
 
-            String blocoPixHtml = "<div style='background-color: #f8f9fa; border: 1px dashed #004d99; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;'>" +
-                    "<h3 style='margin-top: 0; color: #004d99; font-family: Arial, sans-serif;'>Pague via PIX para liberar seu pedido!</h3>" +
-                    (qrCodeBase64 != null && !qrCodeBase64.isBlank() ? "<img src='data:image/png;base64," + qrCodeBase64 + "' width='180' height='180' style='margin: 15px 0;'><br>" : "") +
+            String blocoPixHtml = "<div style='background-color: #f0f0f0; padding: 25px; text-align: center; margin: 25px 0; border-radius: 6px;'>" +
+                    "<h3 style='margin-top: 0; color: #001325; font-family: Arial, sans-serif; font-size: 18px;'>Pague via PIX para liberar seu pedido!</h3>" +
+                    "<img src='" + qrCodeUrl + "' width='180' height='180' alt='QR Code PIX' style='margin: 15px 0; border: 4px solid #ffffff; border-radius: 8px;'><br>" +
                     "<p style='font-size: 13px; color: #555; margin-bottom: 8px; font-family: Arial, sans-serif;'><b>Ou copie e cole o código abaixo no seu banco:</b></p>" +
-                    "<input type='text' value='" + chavePixCopiaECola + "' readonly style='width: 95%; padding: 12px; border: 1px solid #ced4da; font-size: 12px; text-align: center; background: #ffffff; border-radius: 4px; color: #495057;'>" +
+                    "<div style='background-color: #ffffff; padding: 12px; border: 1px solid #e6e5e4; border-radius: 4px; color: #ff0000; font-family: monospace; font-size: 13px; word-break: break-all; text-align: left;'>" +
+                    chavePixCopiaECola +
+                    "</div>" +
                     "</div>";
 
             emailService.enviarEmailPedido(pedido, TipoEmail.PEDIDO_REALIZADO, blocoPixHtml);
