@@ -10,6 +10,7 @@ import br.com.otica.otica_loja.Repository.Admin.EmailTemplateRepository;
 import br.com.otica.otica_loja.Repository.Auth.EnderecoRepository;
 import br.com.otica.otica_loja.Repository.Auth.PerfilRepository;
 import br.com.otica.otica_loja.Repository.Auth.UsuarioRepository;
+import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.enums.TipoEmail;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -35,8 +37,10 @@ public class EmailService {
     private final UsuarioRepository usuarioRepository;
     private final PerfilRepository perfilRepository;
     private final EnderecoRepository enderecoRepository;
+    private final PedidoRepository pedidoRepository; // Injetado para resolver o LazyInitializationException
 
-    @Value("${spring.mail.username}")
+
+    @Value("${app.mail.remetente}")
     private String remetente;
 
     @Value("${app.frontend.url}")
@@ -48,7 +52,7 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente, "Ótica");
+            helper.setFrom(remetente, "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Confirme seu e-mail - Ótica");
 
@@ -63,6 +67,7 @@ public class EmailService {
 
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
+
             log.info("E-mail de verificação enviado com sucesso para {}", destinatario);
 
         } catch (Exception e) {
@@ -76,7 +81,7 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente, "Ótica");
+            helper.setFrom(remetente, "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Aviso de Segurança - Conta Bloqueada");
 
@@ -84,12 +89,14 @@ public class EmailService {
 
             String htmlMsg = "<div style='font-family: Arial, sans-serif; text-align: center; color: #333;'>"
                     + "<h2 style='color: #dc3545;'>Olá, " + nome + ".</h2>"
-                    + "<p>Identificamos múltiplas tentativas de login falhas na sua conta. O acesso foi temporariamente bloqueado por segurança.</p>"
+                    + "<p>Identificamos múltiplas tentativas de login falhas na sua conta. Por segurança, o acesso foi temporariamente bloqueado.</p>"
+                    + "<p>Para desbloquear sua conta, clique no botão abaixo:</p>"
                     + "<a href='" + linkDesbloqueio + "' style='display: inline-block; padding: 12px 24px; color: white; background-color: #dc3545; text-decoration: none; border-radius: 4px; font-weight: bold;'>Desbloquear Conta</a>"
                     + "</div>";
 
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
+
             log.info("E-mail de desbloqueio enviado com sucesso para {}", destinatario);
 
         } catch (Exception e) {
@@ -103,7 +110,7 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente, "Ótica");
+            helper.setFrom(remetente, "Ótica App");
             helper.setTo(destinatario);
             helper.setSubject("Redefinição de Senha - Ótica");
 
@@ -111,13 +118,14 @@ public class EmailService {
 
             String htmlMsg = "<div style='font-family: Arial, sans-serif; text-align: center; color: #333;'>"
                     + "<h2 style='color: #28a745;'>Olá, " + nome + ".</h2>"
-                    + "<p>Você solicitou a redefinição da sua senha. Clique no botão abaixo para cadastrar uma nova senha:</p>"
+                    + "<p>Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha:</p>"
                     + "<a href='" + linkRecuperacao + "' style='display: inline-block; padding: 12px 24px; color: #fff; background-color: #28a745; text-decoration: none; border-radius: 4px; font-weight: bold;'>Redefinir Senha</a>"
                     + "<p style='margin-top: 15px; font-size: 12px; color: #777;'>Este link expira em 2 horas.</p>"
                     + "</div>";
 
             helper.setText(htmlMsg, true);
             mailSender.send(mensagem);
+
             log.info("E-mail de recuperação de senha enviado com sucesso para {}", destinatario);
 
         } catch (Exception e) {
@@ -126,9 +134,12 @@ public class EmailService {
     }
 
     @Async
-    public void enviarEmailPedido(Pedido pedido, TipoEmail tipo, String extraInfo) {
+    @Transactional(readOnly = true) // Abre uma sessão Hibernate na thread do @Async evitando o LazyInitializationException
+    public void enviarEmailPedido(Pedido pedidoParam, TipoEmail tipo, String extraInfo) {
         try {
-            // Resolver Destinatário (Usuário cadastrado ou Cliente presencial)
+            // Re-anexa o pedido na sessão atual do banco para poder carregar a lista de Itens
+            Pedido pedido = pedidoRepository.findById(pedidoParam.getId()).orElse(pedidoParam);
+
             String emailDestino = pedido.getClienteEmail();
             String nomeCliente = pedido.getClienteNome();
 
@@ -142,13 +153,12 @@ public class EmailService {
             }
 
             if (emailDestino == null || emailDestino.isBlank()) {
-                log.warn("E-mail de pedido #{} cancelado: Destinatário sem e-mail cadastrado.", pedido.getId());
+                log.warn("E-mail de pedido #{} não enviado: Destinatário sem e-mail cadastrado.", pedido.getId());
                 return;
             }
 
             String numPedidoExibicao = pedido.getNumero() != null ? String.valueOf(pedido.getNumero()) : pedido.getId().toString().substring(0, 8).toUpperCase();
 
-            // Busca template customizado ou fallback
             Optional<EmailTemplate> optTemplate = templateRepository.findByTipo(tipo);
             String assunto = (optTemplate.isPresent() && Boolean.TRUE.equals(optTemplate.get().getAtivo()))
                     ? optTemplate.get().getAssunto().replace("{{NUMERO_PEDIDO}}", numPedidoExibicao)
@@ -158,7 +168,6 @@ public class EmailService {
                     ? optTemplate.get().getHtmlBase()
                     : getHtmlPadrao(tipo);
 
-            // Monta Mapa de Variáveis
             Map<String, String> variaveis = montarVariaveisPedido(pedido, nomeCliente, numPedidoExibicao, tipo, extraInfo);
 
             for (Map.Entry<String, String> entry : variaveis.entrySet()) {
@@ -168,7 +177,7 @@ public class EmailService {
             MimeMessage mensagem = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
 
-            helper.setFrom(remetente, "Ótica");
+            helper.setFrom(remetente, "Ótica App");
             helper.setTo(emailDestino);
             helper.setSubject(assunto);
             helper.setText(htmlBase, true);
@@ -177,7 +186,7 @@ public class EmailService {
             log.info("E-mail do tipo {} enviado com sucesso para o pedido #{}", tipo, numPedidoExibicao);
 
         } catch (Exception e) {
-            log.error("Erro ao enviar e-mail de pedido #{}: {}", pedido.getId(), e.getMessage(), e);
+            log.error("Erro ao enviar e-mail de pedido #{}: {}", pedidoParam.getId(), e.getMessage(), e);
         }
     }
 
@@ -193,10 +202,8 @@ public class EmailService {
         vars.put("DATA_PEDIDO", pedido.getCriadoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm")));
         vars.put("URL_LOJA", frontendUrl);
 
-        // 1. Stepper / Timeline de Progresso Visual no padrão dos PDFs[cite: 5, 7, 9]
         vars.put("STEPPER_STATUS", gerarStepperHTML(tipo));
 
-        // 2. Tabela de Produtos
         StringBuilder tabelaProdutos = new StringBuilder();
         tabelaProdutos.append("<table width='100%' style='border-collapse: collapse; margin-top: 15px; font-family: Arial, sans-serif;'>");
         tabelaProdutos.append("<tr style='background-color: #f1f3f5; border-bottom: 2px solid #dee2e6; color: #495057; font-size: 13px;'>")
@@ -223,7 +230,6 @@ public class EmailService {
         tabelaProdutos.append("</table>");
         vars.put("TABELA_PRODUTOS", tabelaProdutos.toString());
 
-        // 3. Endereço de Entrega
         if (pedido.getEnderecoId() != null) {
             Optional<Endereco> endOpt = enderecoRepository.findById(pedido.getEnderecoId());
             if (endOpt.isPresent()) {
@@ -241,7 +247,6 @@ public class EmailService {
             vars.put("ENDERECO_ENTREGA", "<b>Venda Presencial / Retirada em Balcão</b>");
         }
 
-        // 4. Bloco com Informações Extras (QR Code Pix ou Código de Rastreio)
         vars.put("INFORMACOES_EXTRAS", extraInfo != null ? extraInfo : "");
 
         return vars;
