@@ -336,4 +336,30 @@ public class EmailService {
                 "  </div>\n" +
                 "</div>";
     }
+    @Async
+    public void enviarEmailMarketing(String destinatario, String titulo, String assunto, String conteudoHtml) {
+        try {
+            MimeMessage mensagem = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
+
+            helper.setFrom(remetente, "Ótica - Novidades");
+            helper.setTo(destinatario);
+            helper.setSubject(assunto);
+
+            // Envelopa o conteúdo livre dentro do nosso template moderno
+            String htmlMsg = gerarTemplateBase(
+                    titulo,
+                    "<div style='color: #555; line-height: 1.6; font-size: 15px;'>" +
+                            conteudoHtml +
+                            "</div>"
+            );
+
+            helper.setText(htmlMsg, true);
+            mailSender.send(mensagem);
+
+            log.info("E-mail de marketing enviado com sucesso para {}", destinatario);
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail de marketing para {}: {}", destinatario, e.getMessage());
+        }
+    }
 }
