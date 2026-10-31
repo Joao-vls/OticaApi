@@ -16,6 +16,7 @@ public class RateLimitService {
     // Armazena os limites em memória baseados no IP
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
+    private final Map<String, Bucket> newsletterBuckets = new ConcurrentHashMap<>();
 
     // 🔥 Mapa para guardar as tentativas de reenvio em memória (Bloqueio Exponencial)
     private final ConcurrentHashMap<String, ResendAttempt> resendAttempts = new ConcurrentHashMap<>();
@@ -98,5 +99,17 @@ public class RateLimitService {
             attempt.ultimaTentativa = agora;
             return 0; // Pode enviar
         }
+    }
+    public Bucket resolveNewsletterBucket(String ip) {
+        return newsletterBuckets.computeIfAbsent(ip, this::newNewsletterBucket);
+    }
+
+    // Configuração para Newsletter: Máximo de 2 inscrições por semana por IP
+    private Bucket newNewsletterBucket(String ip) {
+        Bandwidth limit = Bandwidth.builder()
+                .capacity(2) // Máximo de 2
+                .refillGreedy(2, Duration.ofDays(7)) // Recarrega 2 a cada 7 dias
+                .build();
+        return Bucket.builder().addLimit(limit).build();
     }
 }
