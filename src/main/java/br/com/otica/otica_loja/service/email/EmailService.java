@@ -362,4 +362,33 @@ public class EmailService {
             log.error("Erro ao enviar e-mail de marketing para {}: {}", destinatario, e.getMessage());
         }
     }
+    @Async
+    public void enviarEmailBoasVindasNewsletter(String destinatario) {
+        try {
+            MimeMessage mensagem = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mensagem, true, "UTF-8");
+
+            helper.setFrom(remetente, "Ótica");
+            helper.setTo(destinatario);
+            helper.setSubject("Bem-vindo(a) à nossa Newsletter! 🎉");
+
+            String htmlMsg = gerarTemplateBase(
+                    "INSCRIÇÃO CONFIRMADA",
+                    "<h2 style='color: " + MAIN_TEXT + "; margin-bottom: 20px;'>Olá!</h2>" +
+                            "<p style='color: #555; line-height: 1.6; margin-bottom: 20px;'>Obrigado por se inscrever! A partir de agora, você receberá nossas novidades, dicas e ofertas exclusivas em primeira mão.</p>" +
+                            "<div style='background-color: " + SECONDARY_BG + "; padding: 20px; border-left: 4px solid " + MAIN_TEXT + "; margin-bottom: 20px;'>" +
+                            "   <p style='color: " + MAIN_TEXT + "; margin: 0; font-weight: bold;'>O seu desconto de 20% está garantido!</p>" +
+                            "   <p style='color: #555; margin: 5px 0 0 0; font-size: 14px;'>Acesse o site, faça o login (ou cadastre-se com este e-mail) e o desconto será aplicado automaticamente em sua primeira compra.</p>" +
+                            "</div>" +
+                            "<a href='" + frontendUrl + "' style='display: inline-block; padding: 14px 30px; color: #ffffff; background-color: " + MAIN_TEXT + "; text-decoration: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;'>Acessar a Loja</a>"
+            );
+
+            helper.setText(htmlMsg, true);
+            mailSender.send(mensagem);
+
+            log.info("E-mail de boas-vindas da newsletter enviado com sucesso para {}", destinatario);
+        } catch (Exception e) {
+            log.error("Erro ao enviar e-mail de newsletter para {}: {}", destinatario, e.getMessage());
+        }
+    }
 }
