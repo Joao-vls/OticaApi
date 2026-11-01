@@ -10,6 +10,8 @@ import br.com.otica.otica_loja.dto.ProdutoRequestDTO;
 import br.com.otica.otica_loja.enums.TipoMidia;
 import br.com.otica.otica_loja.service.cms.CloudinaryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +28,12 @@ public class CriarProdutoUseCase {
     private final CategoriaRepository categoriaRepository;
     private final CloudinaryService cloudinaryService;
 
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
     @Transactional
     public Produto criar(ProdutoRequestDTO dto,
                          List<MultipartFile> arquivosImagens,

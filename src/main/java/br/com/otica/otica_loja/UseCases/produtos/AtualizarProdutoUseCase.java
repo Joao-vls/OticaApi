@@ -8,6 +8,8 @@ import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.UseCases.variantes.AtualizarVarianteUseCase;
 import br.com.otica.otica_loja.dto.ProdutoUpdateRequestDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
@@ -28,6 +30,13 @@ public class AtualizarProdutoUseCase {
     private final AtualizarVarianteUseCase atualizarVarianteUseCase;
     private final AtualizarMidiaUseCase atualizarMidiaUseCase;
 
+    @Caching(evict = {
+            @CacheEvict(value = "produto", key = "#request.slug()"), // Limpa a página do produto
+            @CacheEvict(value = "produto", key = "#id.toString()"), // Limpa a página do produto (se buscou por ID)
+            @CacheEvict(value = "catalogo", allEntries = true), // Limpa as listas (pois o preço pode ter mudado)
+            @CacheEvict(value = "vitrines", allEntries = true), // Limpa a home
+            @CacheEvict(value = "filtros", allEntries = true)   // Limpa os filtros (pois as specs podem ter mudado)
+    })
     @Transactional
     public Produto atualizar(
             UUID produtoId,

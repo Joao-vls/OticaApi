@@ -7,6 +7,7 @@ import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.CMS.VitrineProdutoRepository;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class AdicionarProdutoVitrineUseCase {
     /**
      * Adiciona um produto a uma vitrine de forma transacional.
      */
+    @CacheEvict(value = "vitrines", allEntries = true)
     @Transactional
     public VitrineProduto adicionarProduto(UUID vitrineId, UUID produtoId, Integer ordem) {
 

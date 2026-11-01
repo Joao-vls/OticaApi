@@ -4,7 +4,10 @@ import br.com.otica.otica_loja.Entity.Catalogo.ProdutoVariante;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -22,6 +25,13 @@ public class CriarVarianteUseCase {
     /**
      * Cria uma nova variante para um produto existente.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
+    @Transactional
     public ProdutoVariante cria(UUID produtoId,
                                  String nome,
                                  String sku,

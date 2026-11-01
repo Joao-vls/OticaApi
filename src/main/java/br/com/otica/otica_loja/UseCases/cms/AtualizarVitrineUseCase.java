@@ -6,6 +6,7 @@ import br.com.otica.otica_loja.Entity.CMS.VitrineProdutoId;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +37,7 @@ public class AtualizarVitrineUseCase {
             Boolean ativo,
             List<UUID> produtosIds
     ) {}
-
+    @CacheEvict(value = "vitrines", allEntries = true)
     @Transactional
     public Vitrine executar(UUID id, Command command) {
         Vitrine vitrine = vitrineRepository.findById(id)

@@ -6,6 +6,8 @@ import br.com.otica.otica_loja.Repository.Catalogo.ProdutoMidiaRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import br.com.otica.otica_loja.service.CloudinaryStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,12 @@ public class ExcluirProdutoVarianteUseCase {
     /**
      * Soft Delete: Marca a variante como desativada e com data de exclusão.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
     @Transactional
     public void excluirSoft(UUID varianteId) {
         ProdutoVariante variante = varianteRepository.findById(varianteId)
@@ -62,6 +70,12 @@ public class ExcluirProdutoVarianteUseCase {
     /**
      * Remove uma mídia isolada da variante (BD e Cloudinary).
      */
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
     @Transactional
     public void excluirMidiaIndividual(UUID midiaId) {
         ProdutoMidia midia = midiaRepository.findById(midiaId)

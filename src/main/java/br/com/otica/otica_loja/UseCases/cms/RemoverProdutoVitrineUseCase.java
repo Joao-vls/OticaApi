@@ -6,7 +6,9 @@ import br.com.otica.otica_loja.Repository.CMS.VitrineProdutoRepository;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -25,6 +27,8 @@ public class RemoverProdutoVitrineUseCase {
     /**
      * Remove o vínculo de um produto em uma vitrine.
      */
+    @CacheEvict(value = "vitrines", allEntries = true)
+    @Transactional
     public void removerProduto(UUID vitrineId, UUID produtoId) {
         // Buscar vitrine
         Vitrine vitrine = vitrineRepository.findById(vitrineId)

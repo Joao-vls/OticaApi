@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.UseCases.produtos;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class ListarProdutosUseCase {
     /**
      * Lista todos os produtos ativos.
      */
+    @Cacheable(value = "catalogo", key = "'ativos'")
     public List<Produto> listarAtivos() {
         return produtoRepository.findByAtivoTrue();
     }
@@ -38,6 +40,7 @@ public class ListarProdutosUseCase {
     /**
      * Lista todos os produtos em destaque.
      */
+    @Cacheable(value = "catalogo", key = "'destaques'")
     public List<Produto> listarEmDestaque() {
         return produtoRepository.findByDestaqueTrue();
     }

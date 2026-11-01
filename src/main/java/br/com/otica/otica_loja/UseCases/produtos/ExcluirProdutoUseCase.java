@@ -8,6 +8,8 @@ import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoVarianteRepository;
 import br.com.otica.otica_loja.service.CloudinaryStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,12 @@ public class ExcluirProdutoUseCase {
      * Soft Delete do Produto:
      * Marca o produto e suas variantes como inativos e seta a data de deleção.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
     @Transactional
     public void excluir(UUID produtoId) {
         Produto produto = produtoRepository.findById(produtoId)
@@ -57,6 +65,12 @@ public class ExcluirProdutoUseCase {
      * Remove do Cloudinary todas as mídias do produto e de suas variantes,
      * e apaga os registros de Mídias, Variantes e Produto do Banco de Dados.
      */
+    @Caching(evict = {
+            @CacheEvict(value = "produto", allEntries = true),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true)
+    })
     @Transactional
     public void excluirDefinitivo(UUID produtoId) {
         Produto produto = produtoRepository.findById(produtoId)

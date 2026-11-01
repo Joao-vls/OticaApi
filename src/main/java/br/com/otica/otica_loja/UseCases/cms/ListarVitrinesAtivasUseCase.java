@@ -5,6 +5,7 @@ import br.com.otica.otica_loja.Entity.CMS.VitrineProduto;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
 import br.com.otica.otica_loja.dto.cms.VitrineResponseDTO;
 import br.com.otica.otica_loja.enums.TipoMidia;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ public class ListarVitrinesAtivasUseCase {
         this.vitrineRepository = vitrineRepository;
     }
 
+    @Cacheable(value = "vitrines", key = "'ativas'")
     @Transactional(readOnly = true)
     public List<VitrineResponseDTO> executar() {
         List<Vitrine> vitrinesAtivas = vitrineRepository.findByAtivoTrueOrderByOrdemAsc();

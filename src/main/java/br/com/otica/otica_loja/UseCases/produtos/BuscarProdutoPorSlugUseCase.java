@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.UseCases.produtos;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.Repository.Catalogo.ProdutoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -15,6 +16,7 @@ public class BuscarProdutoPorSlugUseCase {
      * Executa a busca de um produto pelo slug para o catálogo da loja.
      * Renomeado para 'executar' para bater com a chamada do Controller.
      */
+    @Cacheable(value = "produto", key = "#slug")
     public Produto executar(String slug) {
         return produtoRepository.findBySlug(slug)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado com o slug: " + slug));
