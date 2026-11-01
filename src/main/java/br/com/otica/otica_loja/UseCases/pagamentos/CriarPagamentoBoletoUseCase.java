@@ -7,12 +7,10 @@ import br.com.otica.otica_loja.UseCases.usuario.ListarEnderecosUseCase;
 import br.com.otica.otica_loja.dto.BoletoPagamentoRequest;
 import br.com.otica.otica_loja.dto.BoletoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
-
 import br.com.otica.otica_loja.enums.TipoEmail;
 import br.com.otica.otica_loja.service.email.EmailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -70,7 +68,7 @@ public class CriarPagamentoBoletoUseCase {
             headers.setBearerAuth(accessToken);
 
             // ==========================================
-            // MONTAGEM DO PAYLOAD DE ORDEM PARA BOLETO (PRODUÇÃO)
+            // MONTAGEM DO PAYLOAD DE ORDEM PARA BOLETO
             // ==========================================
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
@@ -81,7 +79,6 @@ public class CriarPagamentoBoletoUseCase {
 
             Map<String, Object> payer = new HashMap<>();
 
-            // 🌐 EM PRODUÇÃO: Utiliza o e-mail real do cliente
             String emailCliente = request.emailCliente();
             if (emailCliente == null || emailCliente.isBlank()) {
                 throw new IllegalArgumentException("O e-mail do cliente é obrigatório para emissão do boleto.");
@@ -101,7 +98,6 @@ public class CriarPagamentoBoletoUseCase {
             Map<String, Object> identification = new HashMap<>();
             identification.put("type", "CPF");
 
-            // Limpa o CPF estritamente para conter apenas números (11 dígitos)
             String cpfLimpo = request.cpfCliente() != null ? request.cpfCliente().replaceAll("[^0-9]", "") : "";
             if (cpfLimpo.length() != 11) {
                 throw new IllegalArgumentException("CPF inválido ou incompleto para emissão do boleto.");
@@ -109,7 +105,6 @@ public class CriarPagamentoBoletoUseCase {
             identification.put("number", cpfLimpo);
             payer.put("identification", identification);
 
-            // Validação e limpeza do Endereço Real
             Map<String, Object> address = new HashMap<>();
 
             String cepLimpo = enderecoCliente.getCep() != null ? enderecoCliente.getCep().replaceAll("[^0-9]", "") : "";
@@ -119,7 +114,15 @@ public class CriarPagamentoBoletoUseCase {
             address.put("zip_code", cepLimpo);
 
             address.put("street_name", enderecoCliente.getLogradouro() != null ? enderecoCliente.getLogradouro().trim() : "Rua Principal");
-            address.put("street_number", enderecoCliente.getNumero() != null && !enderecoCliente.getNumero().isBlank() ? enderecoCliente.getNumero().trim() : "S/N");
+
+            // 🔥 REGRA DO MERCADO PAGO: Número não pode conter letras ("S/N" causa falha).
+            String numeroReal = enderecoCliente.getNumero();
+            String numeroLimpo = (numeroReal != null) ? numeroReal.replaceAll("[^0-9]", "") : "0";
+            if (numeroLimpo.isEmpty()) {
+                numeroLimpo = "0";
+            }
+            address.put("street_number", numeroLimpo);
+
             address.put("neighborhood", enderecoCliente.getBairro() != null ? enderecoCliente.getBairro().trim() : "Centro");
             address.put("city", enderecoCliente.getCidade() != null ? enderecoCliente.getCidade().trim() : "Cidade");
 
@@ -127,12 +130,13 @@ public class CriarPagamentoBoletoUseCase {
             if (uf.length() > 2) {
                 uf = uf.substring(0, 2);
             }
-            address.put("state", uf);
+
+            // 🔥 REGRA DO MERCADO PAGO: A chave correta é federal_unit e não state
+            address.put("federal_unit", uf);
 
             payer.put("address", address);
             body.put("payer", payer);
 
-            // Configuração do Meio de Pagamento (Boleto)
             Map<String, Object> paymentMethod = new HashMap<>();
             paymentMethod.put("id", "boleto");
             paymentMethod.put("type", "ticket");
@@ -140,24 +144,30 @@ public class CriarPagamentoBoletoUseCase {
             Map<String, Object> paymentItem = new HashMap<>();
             paymentItem.put("amount", totalAmountStr);
             paymentItem.put("payment_method", paymentMethod);
-            paymentItem.put("expiration_time", "P3D"); // Vencimento em 3 dias
+            paymentItem.put("expiration_time", "P3D");
 
             Map<String, Object> transactions = new HashMap<>();
             transactions.put("payments", List.of(paymentItem));
             body.put("transactions", transactions);
 
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
-            HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(body, headers);
 
-            //System.out.println("Enviando requisição de Boleto (PRODUÇÃO) para Orders API...");
+            // DECLARAÇÃO EXATAMENTE COMO NO SEU CÓDIGO (Sem erros de tipagem)
+            HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(body, headers);
 
             ResponseEntity<String> createResponse = restTemplate.postForEntity(
                     "https://api.mercadopago.com/v1/orders",
                     createEntity,
                     String.class
             );
-
             JsonNode createRoot = mapper.readTree(createResponse.getBody());
+
+            // 🔥 MENSAGEM DE ERRO 1: Verifica se a ordem em si foi recusada
+            String orderStatus = createRoot.path("status").asText("");
+            if ("failed".equalsIgnoreCase(orderStatus) || "rejected".equalsIgnoreCase(orderStatus)) {
+                throw new IllegalArgumentException("Pagamento recusado pelo Mercado Pago. Verifique os dados e tente novamente.");
+            }
+
             JsonNode paymentsArray = createRoot.path("transactions").path("payments");
 
             String boletoUrl = "";
@@ -165,6 +175,15 @@ public class CriarPagamentoBoletoUseCase {
 
             if (paymentsArray.isArray() && !paymentsArray.isEmpty()) {
                 JsonNode firstPayment = paymentsArray.get(0);
+
+                // 🔥 MENSAGEM DE ERRO 2: Verifica o status específico da transação do boleto no banco
+                String paymentStatus = firstPayment.path("status").asText("");
+                String statusDetail = firstPayment.path("status_detail").asText("");
+
+                if ("rejected".equalsIgnoreCase(paymentStatus) || "failed".equalsIgnoreCase(paymentStatus) || "processing_error".equalsIgnoreCase(statusDetail)) {
+                    throw new IllegalArgumentException("Boleto recusado pelo banco emissor. Verifique se o CPF do titular está correto e válido na Receita Federal.");
+                }
+
                 JsonNode methodResponse = firstPayment.path("payment_method");
 
                 boletoUrl = methodResponse.path("ticket_url").asText("");
@@ -175,6 +194,7 @@ public class CriarPagamentoBoletoUseCase {
                 }
             }
 
+            // O pedido só avança o status e envia o e-mail se as verificações acima passarem ilesas!
             pedido.setStatus(StatusPedido.PROCESSANDO);
             pedido.setAtualizadoEm(OffsetDateTime.now());
             pedidoRepository.save(pedido);
@@ -199,15 +219,20 @@ public class CriarPagamentoBoletoUseCase {
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             String responseBody = e.getResponseBodyAsString();
-            System.err.println("=== ERRO 422 MERCADO PAGO PRODUÇÃO (BOLETO) ===");
-            System.err.println("Status HTTP: " + e.getStatusCode());
-            System.err.println("ResponseBody completo: " + responseBody);
-            System.err.println("================================================");
 
-            throw new RuntimeException("Erro do Mercado Pago no Boleto: " + responseBody, e);
+            // 🔥 CONVERTE OS ERROS (402, 422) PARA UMA MENSAGEM CLARA NO FRONT-END
+            if (responseBody.contains("processing_error") || e.getStatusCode().value() == 402 || e.getStatusCode().value() == 422) {
+                throw new IllegalArgumentException("Pagamento recusado: O CPF do titular ou os dados informados podem ser inválidos. Verifique e tente novamente.");
+            }
+
+            throw new IllegalArgumentException("Não foi possível gerar o boleto no momento. Tente novamente mais tarde.");
+
+        } catch (IllegalArgumentException e) {
+            // Apenas repassa a exceção com a mensagem correta para o Angular
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Erro ao gerar Boleto no Mercado Pago (Orders API): " + e.getMessage(), e);
+            throw new IllegalArgumentException("Ocorreu um erro interno ao processar seu pagamento. Tente novamente.");
         }
     }
 }
