@@ -31,9 +31,15 @@ public class CancelarPedidoUseCase {
     private EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
 
     @Autowired
-    private EmailService emailService; // 👈 Adicionado
+    private EmailService emailService;
 
+    // Mantém compatibilidade com chamadas antigas disparando e-mail por padrão
     public Pedido cancelar(UUID pedidoId, UUID usuarioId, String observacao) {
+        return cancelar(pedidoId, usuarioId, observacao, true);
+    }
+
+    // Nova assinatura com controle de e-mail
+    public Pedido cancelar(UUID pedidoId, UUID usuarioId, String observacao, boolean dispararEmail) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
 
@@ -71,8 +77,10 @@ public class CancelarPedidoUseCase {
 
         Pedido pedidoSalvo = pedidoRepository.save(pedido);
 
-        // 👇 DISPARA O E-MAIL DE CANCELAMENTO
-        emailService.enviarEmailPedido(pedidoSalvo, TipoEmail.PEDIDO_CANCELADO, null);
+        // 👇 CONTROLE: SÓ DISPARA O E-MAIL SE A FLAG ESTIVER VERDADEIRA
+        if (dispararEmail) {
+            emailService.enviarEmailPedido(pedidoSalvo, TipoEmail.PEDIDO_CANCELADO, null);
+        }
 
         return pedidoSalvo;
     }

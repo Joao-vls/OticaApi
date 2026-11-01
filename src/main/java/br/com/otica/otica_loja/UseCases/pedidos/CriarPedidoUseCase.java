@@ -38,130 +38,81 @@ public class CriarPedidoUseCase {
 
     @Autowired
     private CarrinhoRepository carrinhoRepository;
-
     @Autowired
     private CarrinhoItemRepository carrinhoItemRepository;
-
     @Autowired
     private PedidoRepository pedidoRepository;
-
     @Autowired
     private PedidoItemRepository pedidoItemRepository;
-
     @Autowired
     private EnderecoRepository enderecoRepository;
-
     @Autowired
     private CupomRepository cupomRepository;
-
     @Autowired
     private ProdutoVarianteRepository produtoVarianteRepository;
-
     @Autowired
     private EstoqueMovimentacaoRepository estoqueMovimentacaoRepository;
-
     @Autowired
     private EmailService emailService;
 
-
     @Transactional
     public Pedido criar(UUID usuarioId, BigDecimal valorFrete, String observacoes) {
-
-        // 1. Buscar carrinho
         Carrinho carrinho = carrinhoRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Carrinho não encontrado."));
-
         List<CarrinhoItem> itensCarrinho = carrinho.getItens();
+        if (itensCarrinho.isEmpty()) throw new IllegalArgumentException("Carrinho está vazio.");
 
-        if (itensCarrinho.isEmpty()) {
-            throw new IllegalArgumentException("Carrinho está vazio.");
-        }
-
-        // 2. VALIDAÇÃO ANTECIPADA DE ESTOQUE (FAIL-FAST)
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
             ProdutoVariante variante = itemCarrinho.getVariante();
             Produto produto = variante.getProduto();
             Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
-
-            if (produto != null && !produto.getAtivo()) {
-                throw new IllegalArgumentException(String.format("O produto '%s' não está mais disponível para venda.", produto.getNome()));
-            }
-
-            if (!variante.getAtivo()) {
-                throw new IllegalArgumentException(String.format("A variação '%s' não está mais disponível.", variante.getNome()));
-            }
-
-            if (variante.getStock() < quantidadeSolicitada) {
-                throw new IllegalArgumentException(String.format("Estoque insuficiente para o produto: %s (SKU: %s). Disponível: %d",
-                        variante.getNome(), variante.getSku(), variante.getStock()));
-            }
+            if (produto != null && !produto.getAtivo()) throw new IllegalArgumentException(String.format("O produto '%s' não está mais disponível para venda.", produto.getNome()));
+            if (!variante.getAtivo()) throw new IllegalArgumentException(String.format("A variação '%s' não está mais disponível.", variante.getNome()));
+            if (variante.getStock() < quantidadeSolicitada) throw new IllegalArgumentException(String.format("Estoque insuficiente para o produto: %s (SKU: %s). Disponível: %d", variante.getNome(), variante.getSku(), variante.getStock()));
         }
 
-        // 3. Buscar endereço padrão
         Endereco endereco = enderecoRepository.findByUsuarioIdAndIsDefaultTrue(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Endereço padrão não encontrado."));
 
-        // 4. Calcular subtotal de todos os itens
         BigDecimal subtotal = itensCarrinho.stream()
                 .map(item -> item.getPrecoUnitario().multiply(BigDecimal.valueOf(item.getQuantidade())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 5. Aplicar cupom (se houver no carrinho)
         BigDecimal desconto = BigDecimal.ZERO;
-
-        // 👇 Pega o cupom diretamente do banco de dados (Carrinho)
         Cupom cupom = carrinho.getCupom();
 
         if (cupom != null) {
-            // Revalidações de segurança (O cupom pode ter expirado enquanto estava no carrinho)
-            if (!cupom.getAtivo()) {
-                throw new IllegalArgumentException("O cupom aplicado no carrinho está inativo ou expirado.");
-            }
-            if (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal()) {
-                throw new IllegalArgumentException("O limite de usos para o cupom aplicado já foi atingido.");
-            }
+            if (!cupom.getAtivo()) throw new IllegalArgumentException("O cupom aplicado no carrinho está inativo ou expirado.");
+            if (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal()) throw new IllegalArgumentException("O limite de usos para o cupom aplicado já foi atingido.");
             if (cupom.getUsuariosIdsEspecificos() != null && !cupom.getUsuariosIdsEspecificos().isEmpty()) {
-                if (!cupom.getUsuariosIdsEspecificos().contains(usuarioId)) {
-                    throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
-                }
+                if (!cupom.getUsuariosIdsEspecificos().contains(usuarioId)) throw new IllegalArgumentException("Este cupom não está disponível para o seu usuário.");
             }
 
             BigDecimal subtotalElegivel = BigDecimal.ZERO;
             int limiteRestante = cupom.getLimiteItensPorPedido() != null ? cupom.getLimiteItensPorPedido() : Integer.MAX_VALUE;
 
             if (cupom.getProdutosIdsEspecificos() != null && !cupom.getProdutosIdsEspecificos().isEmpty()) {
-
-
                 final var produtosIdsEspecificos = cupom.getProdutosIdsEspecificos();
-
                 List<CarrinhoItem> itensElegiveis = itensCarrinho.stream()
                         .filter(item -> {
                             UUID idProdutoPai = item.getVariante().getProduto() != null ? item.getVariante().getProduto().getId() : null;
                             UUID idVariante = item.getVariante().getId();
-
-
-                            return produtosIdsEspecificos.contains(idProdutoPai) ||
-                                    produtosIdsEspecificos.contains(idVariante);
+                            return produtosIdsEspecificos.contains(idProdutoPai) || produtosIdsEspecificos.contains(idVariante);
                         })
                         .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
 
-                if (itensElegiveis.isEmpty()) {
-                    throw new IllegalArgumentException("O cupom no carrinho não é válido para os produtos atuais.");
-                }
-
+                if (itensElegiveis.isEmpty()) throw new IllegalArgumentException("O cupom no carrinho não é válido para os produtos atuais.");
                 for (CarrinhoItem item : itensElegiveis) {
                     if (limiteRestante <= 0) break;
                     int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
                     subtotalElegivel = subtotalElegivel.add(item.getPrecoUnitario().multiply(BigDecimal.valueOf(qtdParaDesconto)));
                     limiteRestante -= qtdParaDesconto;
                 }
-
             } else {
                 List<CarrinhoItem> todosOrdenados = itensCarrinho.stream()
                         .sorted((a, b) -> b.getPrecoUnitario().compareTo(a.getPrecoUnitario()))
                         .toList();
-
                 for (CarrinhoItem item : todosOrdenados) {
                     if (limiteRestante <= 0) break;
                     int qtdParaDesconto = Math.min(item.getQuantidade(), limiteRestante);
@@ -171,34 +122,26 @@ public class CriarPedidoUseCase {
             }
 
             desconto = switch (cupom.getTipo().toLowerCase()) {
-                case "percentual" -> subtotalElegivel.multiply(cupom.getValor())
-                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                case "percentual" -> subtotalElegivel.multiply(cupom.getValor()).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
                 case "fixo" -> cupom.getValor().min(subtotalElegivel);
                 case "frete" -> valorFrete.min(cupom.getValor());
                 default -> BigDecimal.ZERO;
             };
 
-            // Atualiza uso do cupom e desativa se for uso único
             cupom.setQuantidadeUtilizada(cupom.getQuantidadeUtilizada() + 1);
-            if (Boolean.TRUE.equals(cupom.getUsoUnico()) ||
-                    (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal())) {
+            if (Boolean.TRUE.equals(cupom.getUsoUnico()) || (cupom.getQuantidadeTotal() != null && cupom.getQuantidadeUtilizada() >= cupom.getQuantidadeTotal())) {
                 cupom.setAtivo(false);
             }
-
             cupom = cupomRepository.save(cupom);
         }
 
-        // 6. Calcular total final do pedido
         BigDecimal total = subtotal.subtract(desconto).add(valorFrete);
-        if (total.compareTo(BigDecimal.ZERO) < 0) {
-            total = BigDecimal.ZERO;
-        }
+        if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
 
-        // 7. Criar pedido
         Pedido pedido = new Pedido();
         pedido.setUsuarioId(usuarioId);
         pedido.setEnderecoId(endereco.getId());
-        pedido.setCupom(cupom); // Associa o cupom
+        pedido.setCupom(cupom);
         pedido.setSubtotal(subtotal);
         pedido.setDesconto(desconto);
         pedido.setFrete(valorFrete);
@@ -206,15 +149,12 @@ public class CriarPedidoUseCase {
         pedido.setObservacoes(observacoes);
         pedido.setCriadoEm(OffsetDateTime.now());
         pedido.setAtualizadoEm(OffsetDateTime.now());
-
         pedido = pedidoRepository.save(pedido);
 
-        // 8. Criar itens do pedido, reduzir estoque e salvar movimentação
         for (CarrinhoItem itemCarrinho : itensCarrinho) {
             ProdutoVariante variante = itemCarrinho.getVariante();
             Produto produto = variante.getProduto();
             Integer quantidadeSolicitada = itemCarrinho.getQuantidade();
-
             Integer saldoAnterior = variante.getStock();
             Integer saldoAtual = saldoAnterior - quantidadeSolicitada;
             variante.setStock(saldoAtual);
@@ -232,23 +172,17 @@ public class CriarPedidoUseCase {
             estoqueMovimentacaoRepository.save(movimentacao);
 
             String urlImagemPrincipal = null;
-
             if (variante.getMidias() != null && !variante.getMidias().isEmpty()) {
                 urlImagemPrincipal = variante.getMidias().stream()
                         .filter(m -> m.getTipo() == TipoMidia.IMAGE)
                         .sorted(Comparator.comparing(ProdutoMidia::getOrdem))
-                        .map(ProdutoMidia::getPath)
-                        .findFirst()
-                        .orElse(null);
+                        .map(ProdutoMidia::getPath).findFirst().orElse(null);
             }
-
             if (urlImagemPrincipal == null && produto != null && produto.getMidias() != null && !produto.getMidias().isEmpty()) {
                 urlImagemPrincipal = produto.getMidias().stream()
                         .filter(m -> m.getTipo() == TipoMidia.IMAGE)
                         .sorted(Comparator.comparing(ProdutoMidia::getOrdem))
-                        .map(ProdutoMidia::getPath)
-                        .findFirst()
-                        .orElse(null);
+                        .map(ProdutoMidia::getPath).findFirst().orElse(null);
             }
 
             PedidoItem pedidoItem = new PedidoItem();
@@ -261,10 +195,9 @@ public class CriarPedidoUseCase {
             pedidoItem.setPrecoUnitario(itemCarrinho.getPrecoUnitario());
             pedidoItem.setSubtotal(itemCarrinho.getPrecoUnitario().multiply(BigDecimal.valueOf(quantidadeSolicitada)));
             pedidoItem.setImagemUrl(urlImagemPrincipal);
-
             pedidoItemRepository.save(pedidoItem);
         }
-        emailService.enviarEmailPedido(pedido, TipoEmail.PEDIDO_REALIZADO, null);
+
         return pedido;
     }
 }

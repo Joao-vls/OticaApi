@@ -1,9 +1,9 @@
 package br.com.otica.otica_loja.UseCases.pagamentos;
 
-// ... mantenha os imports que já existiam e adicione o CarrinhoRepository:
 import br.com.otica.otica_loja.Repository.Carrinho.CarrinhoRepository;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
+import br.com.otica.otica_loja.UseCases.pedidos.CancelarPedidoUseCase;
 import br.com.otica.otica_loja.dto.CartaoPagamentoRequest;
 import br.com.otica.otica_loja.dto.CartaoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -30,7 +31,11 @@ public class CriarPagamentoCartaoUseCase {
     private PedidoRepository pedidoRepository;
 
     @Autowired
-    private CarrinhoRepository carrinhoRepository; // 👈 Novo
+    private CarrinhoRepository carrinhoRepository;
+
+    // 🔥 INJETADO PARA FAZER ROLLBACK SE O CARTÃO FOR RECUSADO
+    @Autowired
+    private CancelarPedidoUseCase cancelarPedidoUseCase;
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
@@ -108,19 +113,29 @@ public class CriarPagamentoCartaoUseCase {
                 pedido.setObservacoes("Pagamento via Cartão aprovado/processado. ID Transação: " + paymentId);
                 pedidoRepository.save(pedido);
 
-                // 👇 LIMPA O CARRINHO AQUI (PAGAMENTO APROVADO!) 👇
                 carrinhoRepository.findByUsuarioId(pedido.getUsuarioId()).ifPresent(carrinho -> {
                     carrinho.getItens().clear();
                     carrinhoRepository.save(carrinho);
                 });
             } else {
-                throw new RuntimeException("Pagamento recusado pelo banco emissor (Status: " + statusMP + ").");
+                // 🔥 ROLLBACK: CARTÃO RECUSADO, DEVOLVE ESTOQUE
+                cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Cartão recusado pelo banco emissor.", false);
+                throw new IllegalArgumentException("Pagamento recusado pelo banco emissor (Status: " + statusMP + ").");
             }
 
             return new CartaoPagamentoResponse(pedido.getId(), statusMP, challengeUrl, "Pagamento processado com sucesso");
 
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            // 🔥 ROLLBACK: ERRO DE DADOS OU LIMITES NO MERCADO PAGO
+            cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Erro HTTP MP Cartão.", false);
+            throw new IllegalArgumentException("Dados de pagamento inválidos. Verifique as informações do cartão.");
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException(e.getMessage().contains("recusado") ? e.getMessage() : "Erro ao processar pagamento de cartão: " + e.getMessage());
+            e.printStackTrace();
+            // 🔥 ROLLBACK: ERRO INTERNO DO SERVIDOR
+            cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Erro interno servidor Cartão.", false);
+            throw new RuntimeException("Erro ao processar pagamento de cartão. Tente novamente.");
         }
     }
 }

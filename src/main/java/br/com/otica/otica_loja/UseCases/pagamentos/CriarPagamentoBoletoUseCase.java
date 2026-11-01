@@ -4,6 +4,7 @@ import br.com.otica.otica_loja.Entity.Auth.Endereco;
 import br.com.otica.otica_loja.Entity.Pedidos.Pedido;
 import br.com.otica.otica_loja.Repository.Pedidos.PedidoRepository;
 import br.com.otica.otica_loja.UseCases.usuario.ListarEnderecosUseCase;
+import br.com.otica.otica_loja.UseCases.pedidos.CancelarPedidoUseCase;
 import br.com.otica.otica_loja.dto.BoletoPagamentoRequest;
 import br.com.otica.otica_loja.dto.BoletoPagamentoResponse;
 import br.com.otica.otica_loja.enums.StatusPedido;
@@ -36,6 +37,10 @@ public class CriarPagamentoBoletoUseCase {
     @Autowired
     private ListarEnderecosUseCase listarEnderecosUseCase;
 
+    // 🔥 INJETADO PARA FAZER ROLLBACK
+    @Autowired
+    private CancelarPedidoUseCase cancelarPedidoUseCase;
+
     @Value("${mercadopago.access-token}")
     private String accessToken;
 
@@ -67,9 +72,6 @@ public class CriarPagamentoBoletoUseCase {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(accessToken);
 
-            // ==========================================
-            // MONTAGEM DO PAYLOAD DE ORDEM PARA BOLETO
-            // ==========================================
             Map<String, Object> body = new HashMap<>();
             body.put("type", "online");
             body.put("external_reference", pedido.getId().toString());
@@ -106,23 +108,19 @@ public class CriarPagamentoBoletoUseCase {
             payer.put("identification", identification);
 
             Map<String, Object> address = new HashMap<>();
-
             String cepLimpo = enderecoCliente.getCep() != null ? enderecoCliente.getCep().replaceAll("[^0-9]", "") : "";
             if (cepLimpo.length() != 8) {
                 throw new IllegalArgumentException("O CEP do endereço precisa conter 8 dígitos.");
             }
             address.put("zip_code", cepLimpo);
-
             address.put("street_name", enderecoCliente.getLogradouro() != null ? enderecoCliente.getLogradouro().trim() : "Rua Principal");
 
-            // 🔥 REGRA DO MERCADO PAGO: Número não pode conter letras ("S/N" causa falha).
             String numeroReal = enderecoCliente.getNumero();
             String numeroLimpo = (numeroReal != null) ? numeroReal.replaceAll("[^0-9]", "") : "0";
             if (numeroLimpo.isEmpty()) {
                 numeroLimpo = "0";
             }
             address.put("street_number", numeroLimpo);
-
             address.put("neighborhood", enderecoCliente.getBairro() != null ? enderecoCliente.getBairro().trim() : "Centro");
             address.put("city", enderecoCliente.getCidade() != null ? enderecoCliente.getCidade().trim() : "Cidade");
 
@@ -130,8 +128,6 @@ public class CriarPagamentoBoletoUseCase {
             if (uf.length() > 2) {
                 uf = uf.substring(0, 2);
             }
-
-            // 🔥 REGRA DO MERCADO PAGO: A chave correta é federal_unit e não state
             address.put("federal_unit", uf);
 
             payer.put("address", address);
@@ -151,8 +147,6 @@ public class CriarPagamentoBoletoUseCase {
             body.put("transactions", transactions);
 
             headers.set("X-Idempotency-Key", UUID.randomUUID().toString());
-
-            // DECLARAÇÃO EXATAMENTE COMO NO SEU CÓDIGO (Sem erros de tipagem)
             HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(body, headers);
 
             ResponseEntity<String> createResponse = restTemplate.postForEntity(
@@ -160,41 +154,37 @@ public class CriarPagamentoBoletoUseCase {
                     createEntity,
                     String.class
             );
+
             JsonNode createRoot = mapper.readTree(createResponse.getBody());
 
-            // 🔥 MENSAGEM DE ERRO 1: Verifica se a ordem em si foi recusada
             String orderStatus = createRoot.path("status").asText("");
             if ("failed".equalsIgnoreCase(orderStatus) || "rejected".equalsIgnoreCase(orderStatus)) {
+                // 🔥 CANCELA SILENCIOSAMENTE E DEVOLVE O ESTOQUE
+                cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Pagamento recusado pelo Mercado Pago.", false);
                 throw new IllegalArgumentException("Pagamento recusado pelo Mercado Pago. Verifique os dados e tente novamente.");
             }
 
             JsonNode paymentsArray = createRoot.path("transactions").path("payments");
-
             String boletoUrl = "";
             String linhaDigitavel = "";
 
             if (paymentsArray.isArray() && !paymentsArray.isEmpty()) {
                 JsonNode firstPayment = paymentsArray.get(0);
-
-                // 🔥 MENSAGEM DE ERRO 2: Verifica o status específico da transação do boleto no banco
                 String paymentStatus = firstPayment.path("status").asText("");
                 String statusDetail = firstPayment.path("status_detail").asText("");
 
                 if ("rejected".equalsIgnoreCase(paymentStatus) || "failed".equalsIgnoreCase(paymentStatus) || "processing_error".equalsIgnoreCase(statusDetail)) {
+                    // 🔥 CANCELA SILENCIOSAMENTE E DEVOLVE O ESTOQUE
+                    cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "CPF recusado pelo banco emissor.", false);
                     throw new IllegalArgumentException("Boleto recusado pelo banco emissor. Verifique se o CPF do titular está correto e válido na Receita Federal.");
                 }
 
                 JsonNode methodResponse = firstPayment.path("payment_method");
-
                 boletoUrl = methodResponse.path("ticket_url").asText("");
                 linhaDigitavel = methodResponse.path("digitable_line").asText("");
-
-                if (linhaDigitavel.isEmpty()) {
-                    linhaDigitavel = methodResponse.path("barcode_content").asText("");
-                }
+                if (linhaDigitavel.isEmpty()) linhaDigitavel = methodResponse.path("barcode_content").asText("");
             }
 
-            // O pedido só avança o status e envia o e-mail se as verificações acima passarem ilesas!
             pedido.setStatus(StatusPedido.PROCESSANDO);
             pedido.setAtualizadoEm(OffsetDateTime.now());
             pedidoRepository.save(pedido);
@@ -219,22 +209,22 @@ public class CriarPagamentoBoletoUseCase {
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             String responseBody = e.getResponseBodyAsString();
-            System.err.println("=== ERRO HTTP MERCADO PAGO PRODUÇÃO (BOLETO) ===");
-            System.err.println("Status HTTP: " + e.getStatusCode());
-            System.err.println("ResponseBody completo: " + responseBody);
 
-            // 🔥 CAPTURA QUALQUER ERRO 4xx DO MERCADO PAGO (400, 402, 422, etc)
+            // 🔥 CANCELA SILENCIOSAMENTE E DEVOLVE O ESTOQUE EM QUALQUER ERRO HTTP
+            cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Erro HTTP Mercado Pago: " + e.getStatusCode(), false);
+
             if (e.getStatusCode().is4xxClientError()) {
                 throw new IllegalArgumentException("Pagamento recusado: O CPF do titular ou os dados informados são inválidos. Verifique e tente novamente.");
             }
-
             throw new IllegalArgumentException("Não foi possível gerar o boleto no momento. Tente novamente mais tarde.");
 
         } catch (IllegalArgumentException e) {
-            // Apenas repassa a exceção com a mensagem correta para o Angular
+            // A exceção já fez o cancelamento acima antes de ser jogada
             throw e;
         } catch (Exception e) {
             e.printStackTrace();
+            // 🔥 CANCELA SILENCIOSAMENTE E DEVOLVE O ESTOQUE EM CASO DE ERRO INTERNO DO SERVIDOR
+            cancelarPedidoUseCase.cancelar(pedido.getId(), pedido.getUsuarioId(), "Erro interno na comunicação com o Mercado Pago.", false);
             throw new IllegalArgumentException("Ocorreu um erro interno ao processar seu pagamento. Tente novamente.");
         }
     }
