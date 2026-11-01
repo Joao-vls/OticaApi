@@ -219,10 +219,13 @@ public class CriarPagamentoBoletoUseCase {
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             String responseBody = e.getResponseBodyAsString();
+            System.err.println("=== ERRO HTTP MERCADO PAGO PRODUÇÃO (BOLETO) ===");
+            System.err.println("Status HTTP: " + e.getStatusCode());
+            System.err.println("ResponseBody completo: " + responseBody);
 
-            // 🔥 CONVERTE OS ERROS (402, 422) PARA UMA MENSAGEM CLARA NO FRONT-END
-            if (responseBody.contains("processing_error") || e.getStatusCode().value() == 402 || e.getStatusCode().value() == 422) {
-                throw new IllegalArgumentException("Pagamento recusado: O CPF do titular ou os dados informados podem ser inválidos. Verifique e tente novamente.");
+            // 🔥 CAPTURA QUALQUER ERRO 4xx DO MERCADO PAGO (400, 402, 422, etc)
+            if (e.getStatusCode().is4xxClientError()) {
+                throw new IllegalArgumentException("Pagamento recusado: O CPF do titular ou os dados informados são inválidos. Verifique e tente novamente.");
             }
 
             throw new IllegalArgumentException("Não foi possível gerar o boleto no momento. Tente novamente mais tarde.");
