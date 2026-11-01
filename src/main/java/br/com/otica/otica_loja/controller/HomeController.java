@@ -30,8 +30,9 @@ public class HomeController {
 
     @GetMapping("/vitrines")
     public ResponseEntity<List<VitrineResponseDTO>> getVitrinesAtivas() {
-        List<VitrineResponseDTO> vitrines = listarVitrinesAtivasUseCase.executar();
-        return ResponseEntity.ok(vitrines);
+
+        VitrineResponseDTO[] vitrines = listarVitrinesAtivasUseCase.executar();
+        return ResponseEntity.ok(List.of(vitrines));
     }
 
     // BUSCA PELO LAYOUT TIPO (HORIZONTAL / VERTICAL) SOMENTE SE ESTIVER ATIVO

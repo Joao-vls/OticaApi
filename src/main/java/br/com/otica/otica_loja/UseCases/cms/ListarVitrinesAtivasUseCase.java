@@ -25,12 +25,13 @@ public class ListarVitrinesAtivasUseCase {
 
     @Cacheable(value = "vitrines", key = "'ativas'")
     @Transactional(readOnly = true)
-    public List<VitrineResponseDTO> executar() {
+    public VitrineResponseDTO[] executar() {
         List<Vitrine> vitrinesAtivas = vitrineRepository.findByAtivoTrueOrderByOrdemAsc();
 
+        // Converte o resultado final explicitamente para um Array
         return vitrinesAtivas.stream()
                 .map(this::mapearParaDTO)
-                .toList();
+                .toArray(VitrineResponseDTO[]::new);
     }
 
     private VitrineResponseDTO mapearParaDTO(Vitrine vitrine) {
