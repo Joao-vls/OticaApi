@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.UseCases.cms;
 import br.com.otica.otica_loja.Entity.CMS.Vitrine;
 import br.com.otica.otica_loja.Entity.CMS.VitrineProduto;
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
+import br.com.otica.otica_loja.dto.cms.VitrineCacheDTO;
 import br.com.otica.otica_loja.dto.cms.VitrineResponseDTO;
 import br.com.otica.otica_loja.enums.TipoMidia;
 import org.springframework.cache.annotation.Cacheable;
@@ -23,15 +24,17 @@ public class ListarVitrinesAtivasUseCase {
         this.vitrineRepository = vitrineRepository;
     }
 
-    @Cacheable(value = "vitrines", key = "'ativas'")
+    @Cacheable(value = "vitrines", key = "'ativas_v3'")
     @Transactional(readOnly = true)
-    public VitrineResponseDTO[] executar() {
+    public VitrineCacheDTO executar() {
         List<Vitrine> vitrinesAtivas = vitrineRepository.findByAtivoTrueOrderByOrdemAsc();
 
-        // Converte o resultado final explicitamente para um Array
-        return vitrinesAtivas.stream()
+        List<VitrineResponseDTO> listaVitrines = vitrinesAtivas.stream()
                 .map(this::mapearParaDTO)
-                .toArray(VitrineResponseDTO[]::new);
+                .toList();
+
+        // 🔥 Retorna o objeto empacotado para o Redis entender a tipagem exata
+        return new VitrineCacheDTO(listaVitrines);
     }
 
     private VitrineResponseDTO mapearParaDTO(Vitrine vitrine) {

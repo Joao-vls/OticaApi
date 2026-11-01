@@ -30,9 +30,9 @@ public class HomeController {
 
     @GetMapping("/vitrines")
     public ResponseEntity<List<VitrineResponseDTO>> getVitrinesAtivas() {
-
-        VitrineResponseDTO[] vitrines = listarVitrinesAtivasUseCase.executar();
-        return ResponseEntity.ok(List.of(vitrines));
+        // Recebe o Wrapper do Redis e extrai a lista perfeita
+        List<VitrineResponseDTO> vitrines = listarVitrinesAtivasUseCase.executar().getVitrines();
+        return ResponseEntity.ok(vitrines);
     }
 
     // BUSCA PELO LAYOUT TIPO (HORIZONTAL / VERTICAL) SOMENTE SE ESTIVER ATIVO
