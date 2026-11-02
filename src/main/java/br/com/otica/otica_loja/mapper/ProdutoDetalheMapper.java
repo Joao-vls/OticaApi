@@ -27,7 +27,10 @@ public class ProdutoDetalheMapper {
 
         // 🔥 Instancia um HashSet Java puro para remover o PersistentSet do Hibernate
         if (produto.getGrausDisponiveis() != null) {
-            dto.setGrausDisponiveis(new HashSet<>(produto.getGrausDisponiveis()));
+            dto.setGrausDisponiveis(
+                    produto.getGrausDisponiveis().stream()
+                            .collect(Collectors.toSet())
+            );
         }
 
         dto.setDestaque(produto.getDestaque());
