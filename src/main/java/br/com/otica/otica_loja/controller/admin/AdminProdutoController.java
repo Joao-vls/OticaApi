@@ -2,8 +2,8 @@ package br.com.otica.otica_loja.controller.admin;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.UseCases.produtos.*;
-
 import br.com.otica.otica_loja.UseCases.variantes.DeletarVarianteUseCase;
+import br.com.otica.otica_loja.dto.ProdutoDetalheDTO; // 🔥 NOVO IMPORT
 import br.com.otica.otica_loja.dto.ProdutoPdvDTO;
 import br.com.otica.otica_loja.dto.ProdutoRequestDTO;
 import br.com.otica.otica_loja.dto.ProdutoUpdateRequestDTO;
@@ -31,13 +31,13 @@ public class AdminProdutoController {
     private final BuscarProdutosPdvUseCase buscarProdutosPdvUseCase;
     private final ExcluirProdutoUseCase excluirProdutoUseCase;
     private final DeletarVarianteUseCase deletarVarianteUseCase;
-    private final ExcluirProdutoVarianteUseCase excluirProdutoVarianteUseCase; // Mantido apenas para mídias avulsas se necessário
+    private final ExcluirProdutoVarianteUseCase excluirProdutoVarianteUseCase;
 
-    // GERENTE e ADMIN podem visualizar a lista
+    // 🔥 CORRIGIDO PARA DEVOLVER A LISTA DE DTOs
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE')")
-    public ResponseEntity<List<Produto>> listarProdutos() {
-        List<Produto> produtos = listarProdutosUseCase.listarTodos();
+    public ResponseEntity<List<ProdutoDetalheDTO>> listarProdutos() {
+        List<ProdutoDetalheDTO> produtos = listarProdutosUseCase.listarTodos();
         return ResponseEntity.ok(produtos);
     }
 
@@ -116,10 +116,9 @@ public class AdminProdutoController {
             @RequestBody java.util.Map<String, Boolean> payload
     ) {
         Boolean ativo = payload.get("ativo");
-        // Chame aqui o seu UseCase ou repositório para atualizar o status no banco
-        // Exemplo: atualizarProdutoUseCase.atualizarStatus(id, ativo);
         return ResponseEntity.noContent().build();
     }
+
     @GetMapping("/pdv/busca")
     @PreAuthorize("hasAnyRole('ADMIN', 'GERENTE', 'ATENDENTE')")
     public ResponseEntity<List<ProdutoPdvDTO>> buscarParaPdv(@RequestParam("q") String termo) {
