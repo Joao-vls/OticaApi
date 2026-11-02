@@ -1,6 +1,7 @@
 package br.com.otica.otica_loja.UseCases.cms;
 
 import br.com.otica.otica_loja.Repository.CMS.VitrineRepository;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +12,12 @@ public class ExcluirVitrineUseCase {
 
     private final VitrineRepository vitrineRepository;
 
+
     public ExcluirVitrineUseCase(VitrineRepository vitrineRepository) {
         this.vitrineRepository = vitrineRepository;
     }
 
+    @CacheEvict(value = "vitrines", allEntries = true)
     @Transactional
     public void executar(UUID id) {
         if (!vitrineRepository.existsById(id)) {
