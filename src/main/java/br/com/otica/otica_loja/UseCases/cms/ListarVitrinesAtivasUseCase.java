@@ -24,7 +24,7 @@ public class ListarVitrinesAtivasUseCase {
         this.vitrineRepository = vitrineRepository;
     }
 
-    @Cacheable(value = "vitrines", key = "'ativas_v4'")
+    @Cacheable(value = "vitrines", key = "'ativas_v5'")
     @Transactional(readOnly = true)
     public VitrineCacheDTO executar() {
         List<Vitrine> vitrinesAtivas = vitrineRepository.findByAtivoTrueOrderByOrdemAsc();
