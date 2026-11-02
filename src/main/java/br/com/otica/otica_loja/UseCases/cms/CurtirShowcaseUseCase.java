@@ -8,6 +8,8 @@ import br.com.otica.otica_loja.Repository.CMS.SocialShowcaseRepository;
 import br.com.otica.otica_loja.Repository.Avaliacao.FavoritoRepository;
 import br.com.otica.otica_loja.UseCases.favoritos.AdicionarFavoritoUseCase;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +20,19 @@ import java.util.UUID;
 public class CurtirShowcaseUseCase {
 
     private final SocialShowcaseRepository showcaseRepository;
-    private final ShowcaseCurtidaRepository curtidaRepository; // INJETADO NOVO REPOSITÓRIO
+    private final ShowcaseCurtidaRepository curtidaRepository;
     private final AdicionarFavoritoUseCase adicionarFavoritoUseCase;
     private final FavoritoRepository favoritoRepository;
 
     @Transactional
+    // 🔥 Limpa o cache da lista de curtidas DESTE usuário específico
+    // 🔥 Limpa o cache público para que o "+1" de curtida apareça para todos os outros usuários
+    @Caching(evict = {
+            @CacheEvict(value = "showcases_curtidas_v1", key = "#usuarioId.toString()"),
+            @CacheEvict(value = "showcases_publicos_v1", allEntries = true)
+    })
     public void executar(UUID showcaseId, UUID usuarioId) {
 
-        // 1. Verifica se o usuário JÁ CURTIU este showcase
         if (curtidaRepository.existsByUsuarioIdAndShowcaseId(usuarioId, showcaseId)) {
             throw new IllegalArgumentException("Você já curtiu este vídeo.");
         }
@@ -33,23 +40,19 @@ public class CurtirShowcaseUseCase {
         SocialShowcase showcase = showcaseRepository.findById(showcaseId)
                 .orElseThrow(() -> new IllegalArgumentException("Showcase não encontrado."));
 
-        // 2. Incrementa as curtidas gerais do Reel
         showcase.setCurtidas(showcase.getCurtidas() + 1);
         showcaseRepository.save(showcase);
 
-        // 3. Salva o registro para o usuário não curtir de novo
         ShowcaseCurtida curtida = new ShowcaseCurtida();
         curtida.setUsuarioId(usuarioId);
         curtida.setShowcaseId(showcaseId);
         curtidaRepository.save(curtida);
 
-        // 4. Se houver produto vinculado, salva nos favoritos do cliente
         if (showcase.getProduto() != null) {
             FavoritoId favId = new FavoritoId();
             favId.setUsuarioId(usuarioId);
             favId.setProdutoId(showcase.getProduto().getId());
 
-            // Só adiciona se já não estiver nos favoritos
             if (!favoritoRepository.existsById(favId)) {
                 adicionarFavoritoUseCase.adicionar(usuarioId, showcase.getProduto().getId());
             }
