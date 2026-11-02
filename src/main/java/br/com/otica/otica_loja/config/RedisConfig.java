@@ -10,7 +10,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+
+import tools.jackson.databind.DefaultTyping;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
 import java.time.Duration;
 
@@ -18,13 +23,22 @@ import java.time.Duration;
 @EnableCaching
 public class RedisConfig {
 
-    /**
-     * Define o Serializador unificado para o Redis usando o Jackson 3.
-     */
     @Bean
-    public GenericJacksonJsonRedisSerializer redisSerializer(ObjectMapper objectMapper) {
-        // Utilizamos a nova classe sem o "2", injetando o ObjectMapper do Jackson 3
-        return new GenericJacksonJsonRedisSerializer(objectMapper);
+    public GenericJacksonJsonRedisSerializer redisSerializer(ObjectMapper springObjectMapper) {
+
+        // 1. Cria um validador de tipos seguro, padrão oficial do Jackson 3
+        // Isso substitui a antiga classe interna LaissezFaireSubTypeValidator
+        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
+                .build();
+
+        // 2. Reconstrói o ObjectMapper injetado pelo Spring adicionando a tipagem (Default Typing)
+        // Usamos a sobrecarga que não precisa do JsonTypeInfo (ele já usa o As.PROPERTY por padrão)
+        ObjectMapper redisMapper = springObjectMapper.rebuild()
+                .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL)
+                .build();
+
+        return new GenericJacksonJsonRedisSerializer(redisMapper);
     }
 
     @Bean
