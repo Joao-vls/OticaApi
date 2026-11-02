@@ -8,6 +8,7 @@ import br.com.otica.otica_loja.dto.FiltrosDisponiveisDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
@@ -20,6 +21,7 @@ public class ObterFiltrosDisponiveisUseCase {
     private final ProdutoRepository produtoRepository;
 
     @Cacheable(value = "filtros", key = "'disponiveis'")
+    @Transactional(readOnly = true)
     public FiltrosDisponiveisDTO executar() {
         List<Produto> produtosAtivos = produtoRepository.findByAtivoTrue();
 

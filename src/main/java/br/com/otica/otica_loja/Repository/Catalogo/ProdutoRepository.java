@@ -67,7 +67,7 @@ public interface ProdutoRepository extends JpaRepository<Produto, UUID> {
 
     // 🔥 VERIFICA SE EXISTE ALGUM PRODUTO VINCULADO À MARCA
     boolean existsByMarcaId(UUID marcaId);
-
+    List<Produto> findByDestaqueTrueAndAtivoTrue();
     List<Produto> findByAtivoTrue();
     List<Produto> findByAtivoFalse();
     List<Produto> findByDestaqueTrue();
