@@ -3,6 +3,7 @@ package br.com.otica.otica_loja.controller;
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.UseCases.produtos.*;
 import br.com.otica.otica_loja.dto.FiltrosDisponiveisDTO;
+import br.com.otica.otica_loja.dto.ProdutoDetalheDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -62,9 +63,9 @@ public class ProdutoController {
 
     // 🔄 ÚNICO endpoint unificado para tratar Slug ou ID principal (UUID) do produto
     @GetMapping("/{identificador}")
-    public ResponseEntity<Produto> produtoPorSlugOuId(@PathVariable String identificador) {
+    public ResponseEntity<ProdutoDetalheDTO> produtoPorSlugOuId(@PathVariable String identificador) {
         try {
-            Produto produto;
+            ProdutoDetalheDTO produto;
             try {
                 java.util.UUID produtoId = java.util.UUID.fromString(identificador);
                 produto = buscarProdutoPorIdUseCase.buscarPorId(produtoId);
