@@ -1,10 +1,10 @@
 package br.com.otica.otica_loja.mapper;
 
 import br.com.otica.otica_loja.Entity.Catalogo.Produto;
-
 import br.com.otica.otica_loja.dto.ProdutoDetalheDTO;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Component
@@ -18,10 +18,18 @@ public class ProdutoDetalheMapper {
         dto.setSlug(produto.getSlug());
         dto.setDescricao(produto.getDescricao());
         dto.setPreco(produto.getPreco());
+
+        // 🔥 String é imutável e segura contra Proxies do Hibernate
         dto.setSpecs(produto.getSpecs());
+
         dto.setPermiteLenteGrau(produto.getPermiteLenteGrau());
         dto.setPermiteReceita(produto.getPermiteReceita());
-        dto.setGrausDisponiveis(produto.getGrausDisponiveis());
+
+        // 🔥 Instancia um HashSet Java puro para remover o PersistentSet do Hibernate
+        if (produto.getGrausDisponiveis() != null) {
+            dto.setGrausDisponiveis(new HashSet<>(produto.getGrausDisponiveis()));
+        }
+
         dto.setDestaque(produto.getDestaque());
         dto.setAtivo(produto.getAtivo());
 
