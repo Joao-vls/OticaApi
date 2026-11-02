@@ -4,12 +4,14 @@ import br.com.otica.otica_loja.Entity.Catalogo.Produto;
 import br.com.otica.otica_loja.UseCases.produtos.*;
 import br.com.otica.otica_loja.dto.FiltrosDisponiveisDTO;
 import br.com.otica.otica_loja.dto.ProdutoDetalheDTO;
+import br.com.otica.otica_loja.mapper.ProdutoDetalheMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/produtos")
@@ -24,14 +26,18 @@ public class ProdutoController {
     private final BuscarProdutoPorVarianteUseCase buscarProdutoPorVarianteUseCase;
     private final ObterFiltrosDisponiveisUseCase obterFiltrosDisponiveisUseCase;
 
+    // 🔥 INJETANDO O MAPPER PARA TRANSFORMAR TUDO EM DTO LIMPO
+    private final ProdutoDetalheMapper produtoDetalheMapper;
+
     @GetMapping("/pesquisar")
-    public ResponseEntity<List<Produto>> pesquisar(@RequestParam(value = "termo", required = false) String termo) {
+    public ResponseEntity<List<ProdutoDetalheDTO>> pesquisar(@RequestParam(value = "termo", required = false) String termo) {
         if (termo == null || termo.trim().isEmpty()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
         List<Produto> resultados = pesquisarProdutosUseCase.pesquisarPorTextoLivre(termo);
-        return ResponseEntity.ok(resultados);
+        // Transforma a lista de entidades brutas em lista de DTOs
+        return ResponseEntity.ok(resultados.stream().map(produtoDetalheMapper::toDTO).collect(Collectors.toList()));
     }
 
     @GetMapping("/filtros")
@@ -39,26 +45,23 @@ public class ProdutoController {
         FiltrosDisponiveisDTO filtros = obterFiltrosDisponiveisUseCase.executar();
         return ResponseEntity.ok(filtros);
     }
+
     @GetMapping
-    public ResponseEntity<List<Produto>> listarTodosAtivos() {
+    public ResponseEntity<List<ProdutoDetalheDTO>> listarTodosAtivos() {
         List<Produto> produtos = listarProdutosUseCase.listarAtivos();
-        return ResponseEntity.ok(produtos);
+        return ResponseEntity.ok(produtos.stream().map(produtoDetalheMapper::toDTO).collect(Collectors.toList()));
     }
 
     @GetMapping("/todos")
-    public ResponseEntity<List<Produto>> listarTodos() {
-        List<Produto> produtos = listarTodosAtivosInativos();
-        return ResponseEntity.ok(produtos);
-    }
-
-    private List<Produto> listarTodosAtivosInativos() {
-        return listarProdutosUseCase.listarTodos();
+    public ResponseEntity<List<ProdutoDetalheDTO>> listarTodos() {
+        List<Produto> produtos = listarProdutosUseCase.listarTodos();
+        return ResponseEntity.ok(produtos.stream().map(produtoDetalheMapper::toDTO).collect(Collectors.toList()));
     }
 
     @GetMapping("/destaques")
-    public ResponseEntity<List<Produto>> destaques() {
+    public ResponseEntity<List<ProdutoDetalheDTO>> destaques() {
         List<Produto> produtosDestaque = listarProdutosUseCase.listarEmDestaque();
-        return ResponseEntity.ok(produtosDestaque);
+        return ResponseEntity.ok(produtosDestaque.stream().map(produtoDetalheMapper::toDTO).collect(Collectors.toList()));
     }
 
     // 🔄 ÚNICO endpoint unificado para tratar Slug ou ID principal (UUID) do produto
@@ -78,11 +81,12 @@ public class ProdutoController {
         }
     }
 
-    // Rota específica para variantes (mantida intacta)
+    // Rota específica para variantes (fallback do Angular)
     @GetMapping("/variante/{varianteId}")
-    public ResponseEntity<Produto> produtoPorVarianteId(@PathVariable String varianteId) {
+    public ResponseEntity<ProdutoDetalheDTO> produtoPorVarianteId(@PathVariable String varianteId) {
         try {
-            Produto produto = buscarProdutoPorVarianteUseCase.executar(varianteId);
+            // 🔥 AGORA DEVOLVE O DTO E NÃO QUEBRA O JACKSON
+            ProdutoDetalheDTO produto = buscarProdutoPorVarianteUseCase.executar(varianteId);
             return ResponseEntity.ok(produto);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
