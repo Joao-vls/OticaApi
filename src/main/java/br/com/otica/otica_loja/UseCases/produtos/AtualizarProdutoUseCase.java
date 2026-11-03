@@ -31,11 +31,11 @@ public class AtualizarProdutoUseCase {
     private final AtualizarMidiaUseCase atualizarMidiaUseCase;
 
     @Caching(evict = {
-            @CacheEvict(value = "produto", key = "#request.slug()"), // Limpa a página do produto
-            @CacheEvict(value = "produto", key = "#id.toString()"), // Limpa a página do produto (se buscou por ID)
-            @CacheEvict(value = "catalogo", allEntries = true), // Limpa as listas (pois o preço pode ter mudado)
-            @CacheEvict(value = "vitrines", allEntries = true), // Limpa a home
-            @CacheEvict(value = "filtros", allEntries = true)   // Limpa os filtros (pois as specs podem ter mudado)
+            @CacheEvict(value = "produto", key = "'slug:' + #dto.getSlug()"), // Lendo do DTO, não do Request (e com prefixo)
+            @CacheEvict(value = "produto", key = "'id:' + #produtoId.toString()"),
+            @CacheEvict(value = "catalogo", allEntries = true),
+            @CacheEvict(value = "filtros", allEntries = true),
+            @CacheEvict(value = "vitrines", allEntries = true)
     })
     @Transactional
     public Produto atualizar(
